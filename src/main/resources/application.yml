@@ -5,23 +5,8 @@ spring:
   config:
     import: optional:file:.env[.properties]
 
-  datasource:
-    url: ${DB_URL}
-    username: ${DB_USERNAME}
-    password: ${DB_PASSWORD}
-    driver-class-name: com.mysql.cj.jdbc.Driver
-  sql:
-    init:
-      mode: never
-
-  jpa:
-    properties:
-      hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
-        show-sql: true
-        format-sql: true
-        hbm2ddl:
-          auto: create-drop
+  profiles:
+    active: dev
 
 springdoc:
   swagger-ui:
