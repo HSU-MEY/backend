@@ -1,8 +1,6 @@
 name: CI
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
 
@@ -13,7 +11,7 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: JDK 17 set up
+      - name: Set up JDK 17
         uses: actions/setup-java@v2
         with:
           java-version: '17'
