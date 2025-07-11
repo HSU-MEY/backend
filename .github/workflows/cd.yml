@@ -6,6 +6,7 @@ on:
  
 env:
   S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+  DEPLOYMENT_APPLICATION_NAME: MEY-WAS
   DEPLOYMENT_GROUP_NAME: MEY-CD
   PROJECT_NAME: MEY
   
@@ -51,7 +52,7 @@ jobs:
       - name: Deploy
         run: |
           aws deploy create-deployment \
-          --application-name $PROJECT_NAME \
+          --application-name $DEPLOYMENT_APPLICATION_NAME \
           --deployment-config-name CodeDeployDefault.AllAtOnce \
           --deployment-group-name $DEPLOYMENT_GROUP_NAME \
           --file-exists-behavior OVERWRITE \
