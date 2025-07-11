@@ -4,8 +4,8 @@
 mkdir -p /home/ubuntu/mey/logs
 touch /home/ubuntu/mey/logs/deploy.log
 
-# 배포된 JAR 파일 찾기 (CodeDeploy에 의해 복사된 파일)
-BUILD_JAR=$(ls /home/ubuntu/mey/*.jar | head -1)
+# 실행 가능한 JAR 파일 찾기 (plain이 아닌 파일)
+BUILD_JAR=$(ls /home/ubuntu/mey/*SNAPSHOT.jar | grep -v plain | head -1)
 JAR_NAME=$(basename $BUILD_JAR)
 echo "> build 파일명: $JAR_NAME" >> /home/ubuntu/mey/logs/deploy.log
 
@@ -18,9 +18,13 @@ then
 else
   echo "> kill -15 $CURRENT_PID" >> /home/ubuntu/mey/logs/deploy.log
   kill -15 $CURRENT_PID
-  sleep 5
+  sleep 10
 fi
 
 echo "> JAR 배포 시작" >> /home/ubuntu/mey/logs/deploy.log
-nohup java -jar $BUILD_JAR >> /home/ubuntu/mey/logs/deploy.log 2>/home/ubuntu/mey/logs/deploy_err.log &
-echo "JAR 배포 완료" >> /home/ubuntu/mey/logs/deploy.log
+cd /home/ubuntu/mey
+nohup java -jar -Dserver.address=0.0.0.0 -Dserver.port=8080 $BUILD_JAR > /home/ubuntu/mey/logs/deploy.log 2>/home/ubuntu/mey/logs/deploy_err.log &
+
+# PID 저장
+echo $! > /home/ubuntu/mey/logs/app.pid
+echo "JAR 배포 완료, PID: $(cat /home/ubuntu/mey/logs/app.pid)" >> /home/ubuntu/mey/logs/deploy.log
