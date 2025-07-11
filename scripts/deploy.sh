@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# ubuntu 사용자의 환경변수 로드
+source /home/ubuntu/.profile
+
 # 로그 디렉토리 및 파일 생성
 mkdir -p /home/ubuntu/mey/logs
 touch /home/ubuntu/mey/logs/deploy.log
