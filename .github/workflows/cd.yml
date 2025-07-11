@@ -32,7 +32,7 @@ jobs:
         shell: bash
 
       - name: Prepare deployment directory
-        run: mkdir -p ./deploy
+        run: mkdir -p ./deploy/scripts
         shell: bash
 
       - name: Copy JAR file
@@ -40,7 +40,7 @@ jobs:
         shell: bash
 
       - name: Copy scripts
-        run: cp ./scripts/*.sh ./deploy/
+        run: cp ./scripts/*.sh ./deploy/scripts/
         shell: bash
 
       - name: Copy appspec.yml
