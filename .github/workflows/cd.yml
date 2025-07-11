@@ -5,8 +5,8 @@ on:
     branches: [ main ]
  
 env:
-  S3_BUCKET_NAME: project-bucket-v1
-  PROJECT_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+  S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+  PROJECT_NAME: MEY
   
 jobs:
   build:
