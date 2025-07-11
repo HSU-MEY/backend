@@ -23,7 +23,9 @@ fi
 
 echo "> JAR 배포 시작" >> /home/ubuntu/mey/logs/deploy.log
 cd /home/ubuntu/mey
-nohup java -jar -Dserver.address=0.0.0.0 -Dserver.port=8080 $BUILD_JAR > /home/ubuntu/mey/logs/deploy.log 2>/home/ubuntu/mey/logs/deploy_err.log &
+
+# 전체 경로로 Java 실행
+nohup /opt/jdk-17.0.7+7/bin/java -jar -Dserver.address=0.0.0.0 -Dserver.port=8080 $BUILD_JAR > /home/ubuntu/mey/logs/deploy.log 2>/home/ubuntu/mey/logs/deploy_err.log &
 
 # PID 저장
 echo $! > /home/ubuntu/mey/logs/app.pid
