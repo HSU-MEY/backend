@@ -35,11 +35,20 @@ jobs:
         run: mkdir -p ./deploy
         shell: bash
 
-      - name: Copy script
-        run: cp ./scripts/*.sh ./deploy
+      - name: Copy JAR file
+        run: cp ./build/libs/*.jar ./deploy/
+        shell: bash
+
+      - name: Copy scripts
+        run: cp ./scripts/*.sh ./deploy/
+        shell: bash
+
+      - name: Copy appspec.yml
+        run: cp appspec.yml ./deploy/
+        shell: bash
 
       - name: Make zip file
-        run: zip -r ./$GITHUB_SHA.zip .
+        run: zip -r ./$GITHUB_SHA.zip ./deploy/
         shell: bash
 
       - name: Configure AWS credentials
