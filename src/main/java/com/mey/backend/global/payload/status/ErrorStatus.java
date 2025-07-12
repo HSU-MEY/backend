@@ -13,9 +13,13 @@ public enum ErrorStatus implements BaseStatus {
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED,"COMMON_401","인증이 필요합니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON_403", "금지된 요청입니다."),
 
+    // Auth Error
+    USERNAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "AUTH_4001", "이미 존재하는 사용자명입니다."),
+    EMAIL_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "AUTH_4002", "이미 존재하는 이메일입니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_4011", "유효하지 않은 리프레시 토큰입니다."),
+
     // Member Error
-    MEMBER_NOT_FOUND(HttpStatus.BAD_REQUEST, "MEMBER_4001", "사용자가 없습니다."),
-    NICKNAME_NOT_EXIST(HttpStatus.BAD_REQUEST, "MEMBER_4002", "닉네임은 필수 입니다."),
+    USERNAME_NOT_EXIST(HttpStatus.BAD_REQUEST, "MEMBER_4000", "사용자명이 존재하지 않습니다."),
     ;
 
     private final HttpStatus httpStatus;
