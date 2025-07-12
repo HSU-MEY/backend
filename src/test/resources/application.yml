@@ -16,3 +16,8 @@ spring:
   h2:
     console:
       enabled: false
+
+jwt:
+  secret: testSecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLongToEnsureSecurityAndValidityForHmacSha256Algorithm
+  access-token-validity: 3600000
+  refresh-token-validity: 604800000
