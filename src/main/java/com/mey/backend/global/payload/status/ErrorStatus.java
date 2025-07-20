@@ -20,6 +20,9 @@ public enum ErrorStatus implements BaseStatus {
 
     // Member Error
     USERNAME_NOT_EXIST(HttpStatus.BAD_REQUEST, "MEMBER_4000", "사용자명이 존재하지 않습니다."),
+
+    // Chatbot Error
+    LLM_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "CHATBOT_5001", "LLM API 호출 중 오류가 발생했습니다."),
     ;
 
     private final HttpStatus httpStatus;
