@@ -8,11 +8,18 @@ spring:
   profiles:
     active: dev
 
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY}
+      embedding:
+        options:
+          model: text-embedding-3-small
+
 springdoc:
   swagger-ui:
     path: /swagger
 
 jwt:
-  secret: ${JWT_SECRET:mySecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLongToEnsureSecurityAndValidityForHmacSha256Algorithm}
+  secret: ${JWT_SECRET}
   access-token-validity: 3600000  # 1시간 (밀리초)
   refresh-token-validity: 604800000  # 7일 (밀리초)
