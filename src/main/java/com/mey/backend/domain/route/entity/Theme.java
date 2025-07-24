@@ -6,10 +6,10 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum Theme {
-    KDRAMA("KDRAMA"),
-    KPOP("KPOP"),
-    KFOOD("KFOOD"),
-    KFASHION("KFASHION");
+    KDRAMA("K_DRAMA"),
+    KPOP("K_POP"),
+    KFOOD("K_FOOD"),
+    KFASHION("K_FASHION");
 
     private final String routeTheme;
 }

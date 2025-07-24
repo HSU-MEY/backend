@@ -1,5 +1,6 @@
 package com.mey.backend.domain.route.entity;
 
+import com.mey.backend.domain.common.entity.BaseTimeEntity;
 import com.mey.backend.domain.region.entity.Region;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -11,7 +12,7 @@ import java.time.LocalDateTime;
 @Table(name = "routes")
 @Getter
 @Setter
-public class Route {
+public class Route extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -34,7 +35,7 @@ public class Route {
     private String descriptionEn;
 
     @Column(nullable = false)
-    private String ImageUrl;
+    private String imageUrl;
 
     @Column(nullable = false)
     private int cost;
@@ -55,21 +56,4 @@ public class Route {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private RouteType routeType;
-
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }

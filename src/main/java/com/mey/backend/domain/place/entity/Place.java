@@ -1,10 +1,13 @@
 package com.mey.backend.domain.place.entity;
 
+import com.mey.backend.domain.common.entity.BaseTimeEntity;
 import com.mey.backend.domain.region.entity.Region;
 import jakarta.persistence.*;
 import lombok.*;
-
-import java.time.LocalDateTime;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+import java.util.List;
+import java.util.Map;
 
 @Entity
 @Table(name = "places")
@@ -13,7 +16,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class Place {
+public class Place extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -59,32 +62,17 @@ public class Place {
     @Column(nullable = false)
     private String tourApiPlaceId;
 
-    @Column(nullable = false)
-    private String openingHours; // json 타입으로 변환 필요
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "json")
+    private Map<String, String> openingHours; // 예: "monday": "09:00-18:00"
 
-    @Column(nullable = false)
-    private String themes; // json 타입으로 변환 필요
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "json")
+    private List<String> themes; // 예: ["힐링", "자연", "역사"]
 
     @Column(nullable = false)
     private String tags;
 
     @Column(nullable = false)
     private String costInfo;
-
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }

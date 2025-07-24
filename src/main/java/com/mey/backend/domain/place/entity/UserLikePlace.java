@@ -1,14 +1,13 @@
 package com.mey.backend.domain.place.entity;
 
+import com.mey.backend.domain.common.entity.BaseTimeEntity;
 import com.mey.backend.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.Getter;
 
-import java.time.LocalDateTime;
-
 @Entity
 @Getter
-public class UserLikePlace {
+public class UserLikePlace extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -21,12 +20,4 @@ public class UserLikePlace {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "place_id")
     private Place place;
-
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-    }
 }

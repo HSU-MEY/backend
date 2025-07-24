@@ -1,4 +1,4 @@
-package com.mey.backend.domain.userRoute.entity;
+package com.mey.backend.domain.user_route.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

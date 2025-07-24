@@ -1,5 +1,6 @@
-package com.mey.backend.domain.userRoute.entity;
+package com.mey.backend.domain.user_route.entity;
 
+import com.mey.backend.domain.common.entity.BaseTimeEntity;
 import com.mey.backend.domain.route.entity.Route;
 import com.mey.backend.domain.user.entity.User;
 import jakarta.persistence.*;
@@ -15,7 +16,7 @@ import java.util.Date;
 @Getter
 @Setter
 @NoArgsConstructor
-public class UserRoute {
+public class UserRoute extends BaseTimeEntity {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -44,21 +45,4 @@ public class UserRoute {
 
     @Column(nullable = false)
     private LocalDateTime completedAt;
-
-    @Column(nullable = false)
-    private LocalDateTime createdAt;
-
-    @Column(nullable = false)
-    private LocalDateTime updatedAt;
-
-    @PrePersist
-    protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        this.updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        this.updatedAt = LocalDateTime.now();
-    }
 }
