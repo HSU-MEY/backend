@@ -1,4 +1,4 @@
-package com.mey.backend.domain.chatbot.config;
+package com.mey.backend.global.config;
 
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.beans.factory.annotation.Value;
