@@ -35,7 +35,7 @@ public class ChatController {
 
         if (response == null) {
             log.error("LLM 응답 실패");
-            throw new LLMException(ErrorStatus.LLM_API_ERROR);
+            throw new LLMException();
         }
 
         return CommonResponse.onSuccess(response);

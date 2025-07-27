@@ -19,10 +19,17 @@ public enum ErrorStatus implements BaseStatus {
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_4011", "유효하지 않은 리프레시 토큰입니다."),
 
     // Member Error
-    USERNAME_NOT_EXIST(HttpStatus.BAD_REQUEST, "MEMBER_4000", "사용자명이 존재하지 않습니다."),
+    USERNAME_NOT_EXIST(HttpStatus.BAD_REQUEST, "MEMBER_4001", "사용자명이 존재하지 않습니다."),
 
     // Chatbot Error
     LLM_API_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "CHATBOT_5001", "LLM API 호출 중 오류가 발생했습니다."),
+    DOCUMENT_EMBEDDING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "CHATBOT_5002", "문서 임베딩 처리 중 오류가 발생했습니다."),
+    FILE_PROCESSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "CHATBOT_5003", "파일 처리 중 오류가 발생했습니다."),
+    SIMILARITY_PROCESSING_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "CHATBOT_5004", "유사도 검색 처리 중 오류가 발생했습니다."),
+
+    // File Error
+    EMPTY_FILE(HttpStatus.BAD_REQUEST, "FILE_4001", "파일이 비어 있습니다."),
+    INVALID_FILE_TYPE(HttpStatus.BAD_REQUEST, "FILE_4002", "지원하지 않는 파일 형식입니다."),
     ;
 
     private final HttpStatus httpStatus;
