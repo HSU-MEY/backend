@@ -5,6 +5,8 @@ import com.mey.backend.domain.place.dto.PlaceThemeResponseDto;
 import com.mey.backend.domain.place.entity.Place;
 import com.mey.backend.domain.place.repository.PlaceRepository;
 import com.mey.backend.domain.place.repository.UserLikePlaceRepository;
+import com.mey.backend.global.exception.PlaceException;
+import com.mey.backend.global.payload.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -26,12 +28,17 @@ public class PlaceService {
 
     public PlaceResponseDto getPlaceDetail(Long placeId) {
         Place place = placeRepository.findById(placeId)
-                .orElseThrow(() -> new IllegalArgumentException("해당 장소를 찾을 수 없습니다."));
+                .orElseThrow(() -> new PlaceException(ErrorStatus.PLACE_NOT_FOUND));
         return new PlaceResponseDto(place);
     }
 
     public List<PlaceResponseDto> getPopularPlaces() {
-        return userLikePlaceRepository.findPopularPlaces().stream()
+        List<Place> places = userLikePlaceRepository.findPopularPlaces();
+        if (places.isEmpty()) {
+            throw new PlaceException(ErrorStatus.PLACE_NOT_FOUND);
+        }
+
+        return places.stream()
                 .map(PlaceResponseDto::new)
                 .collect(Collectors.toList());
     }
@@ -39,6 +46,10 @@ public class PlaceService {
     public List<PlaceThemeResponseDto> getPlacesByTheme(String keyword, int limit) {
         String jsonKeyword = "[\"" + keyword.toLowerCase() + "\"]";
         List<Place> places = placeRepository.findByThemeKeywordWithLimit(jsonKeyword, limit);
+
+        if (places.isEmpty()) {
+            throw new PlaceException(ErrorStatus.PLACE_NOT_FOUND);
+        }
 
         return places.stream()
                 .map(PlaceThemeResponseDto::new)

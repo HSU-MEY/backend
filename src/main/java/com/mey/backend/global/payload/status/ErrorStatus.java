@@ -20,6 +20,9 @@ public enum ErrorStatus implements BaseStatus {
 
     // Member Error
     USERNAME_NOT_EXIST(HttpStatus.BAD_REQUEST, "MEMBER_4000", "사용자명이 존재하지 않습니다."),
+
+    // Place Error
+    PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "PLACE_404", "해당 장소를 찾을 수 없습니다."),
     ;
 
     private final HttpStatus httpStatus;
