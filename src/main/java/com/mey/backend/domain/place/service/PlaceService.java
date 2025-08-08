@@ -1,6 +1,7 @@
 package com.mey.backend.domain.place.service;
 
 import com.mey.backend.domain.place.dto.PlaceResponseDto;
+import com.mey.backend.domain.place.dto.PlaceThemeResponseDto;
 import com.mey.backend.domain.place.entity.Place;
 import com.mey.backend.domain.place.repository.PlaceRepository;
 import com.mey.backend.domain.place.repository.UserLikePlaceRepository;
@@ -32,6 +33,15 @@ public class PlaceService {
     public List<PlaceResponseDto> getPopularPlaces() {
         return userLikePlaceRepository.findPopularPlaces().stream()
                 .map(PlaceResponseDto::new)
+                .collect(Collectors.toList());
+    }
+
+    public List<PlaceThemeResponseDto> getPlacesByTheme(String keyword, int limit) {
+        String jsonKeyword = "[\"" + keyword.toLowerCase() + "\"]";
+        List<Place> places = placeRepository.findByThemeKeywordWithLimit(jsonKeyword, limit);
+
+        return places.stream()
+                .map(PlaceThemeResponseDto::new)
                 .collect(Collectors.toList());
     }
 }

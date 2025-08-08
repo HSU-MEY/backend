@@ -1,6 +1,7 @@
 package com.mey.backend.domain.place.controller;
 
 import com.mey.backend.domain.place.dto.PlaceResponseDto;
+import com.mey.backend.domain.place.dto.PlaceThemeResponseDto;
 import com.mey.backend.domain.place.service.PlaceService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -29,5 +30,13 @@ public class PlaceController {
     @GetMapping("/popular")
     public List<PlaceResponseDto> getPopularPlaces() {
         return placeService.getPopularPlaces();
+    }
+
+    @GetMapping("/theme")
+    public List<PlaceThemeResponseDto> getPlacesByTheme(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "10") int limit // 기본값 1
+    ) {
+        return placeService.getPlacesByTheme(keyword, limit);
     }
 }

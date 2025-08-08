@@ -68,7 +68,7 @@ public class Place extends BaseTimeEntity {
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "json")
-    private List<String> themes; // 예: ["힐링", "자연", "역사"]
+    private List<String> themes;
 
     @Column(nullable = false)
     private String tags;
