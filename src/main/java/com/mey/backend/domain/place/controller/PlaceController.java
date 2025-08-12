@@ -35,7 +35,7 @@ public class PlaceController {
     @GetMapping("/theme")
     public List<PlaceThemeResponseDto> getPlacesByTheme(
             @RequestParam String keyword,
-            @RequestParam(defaultValue = "10") int limit // 기본값 1
+            @RequestParam(defaultValue = "10") int limit
     ) {
         return placeService.getPlacesByTheme(keyword, limit);
     }
