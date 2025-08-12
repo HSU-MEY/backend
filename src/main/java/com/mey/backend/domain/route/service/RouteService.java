@@ -2,8 +2,11 @@ package com.mey.backend.domain.route.service;
 
 import com.mey.backend.domain.route.dto.*;
 import com.mey.backend.domain.route.entity.Route;
+import com.mey.backend.domain.route.entity.RoutePlace;
 import com.mey.backend.domain.route.entity.Theme;
+import com.mey.backend.domain.route.repository.RoutePlaceRepository;
 import com.mey.backend.domain.route.repository.RouteRepository;
+import com.mey.backend.domain.route.repository.RouteTransportRepository;
 import com.mey.backend.global.exception.RouteException;
 import com.mey.backend.global.payload.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +26,8 @@ import java.util.stream.Collectors;
 public class RouteService {
 
     private final RouteRepository routeRepository;
+    private final RoutePlaceRepository routePlaceRepository;
+    private final RouteTransportRepository routeTransportRepository;
 
     public RouteRecommendListResponseDto getRecommendedRoutes(String theme, String region, LocalDate date, int limit, int offset) {
         Theme themeEnum = null;
@@ -113,9 +118,25 @@ public class RouteService {
         Route route = routeRepository.findById(routeId)
             .orElseThrow(() -> new RouteException(ErrorStatus.ROUTE_NOT_FOUND));
 
-        // 실제 장소 데이터가 없으므로 모킹 데이터 사용
-        List<RouteDetailResponseDto.RoutePlaceDto> mockPlaces = createMockRoutePlaces(startTime);
-        List<RouteDetailResponseDto.RouteTransportDto> mockTransports = createMockRouteTransports();
+        // 실제 RoutePlace 데이터 조회
+//        List<RoutePlace> routePlaces = routePlaceRepository.findByRouteIdOrderByVisitOrder(routeId);
+//        List<RouteTransport> routeTransports = routeTransportRepository.findByRouteId(routeId);
+//
+//        // 데이터가 있으면 실제 데이터 사용, 없으면 모킹 데이터 사용
+//        List<RouteDetailResponseDto.RoutePlaceDto> placeDtos;
+//        List<RouteDetailResponseDto.RouteTransportDto> transportDtos;
+//
+//        if (!routePlaces.isEmpty()) {
+//            placeDtos = convertToRoutePlaceDtos(routePlaces, startTime);
+//        } else {
+//            placeDtos = createMockRoutePlaces(startTime);
+//        }
+//
+//        if (!routeTransports.isEmpty()) {
+//            transportDtos = convertToRouteTransportDtos(routeTransports);
+//        } else {
+//            transportDtos = createMockRouteTransports();
+//        }
 
         return RouteDetailResponseDto.builder()
             .routeId(route.getId())
@@ -126,9 +147,55 @@ public class RouteService {
             .totalDurationMinutes(route.getTotalDurationMinutes())
             .estimatedCost((int) route.getTotalCost())
             .suggestedStartTimes(getAvailableTimes())
-            .routePlaces(mockPlaces)
-            .routeTransports(mockTransports)
+//            .routePlaces(placeDtos)
+//            .routeTransports(transportDtos)
             .build();
+    }
+
+    private List<RouteDetailResponseDto.RoutePlaceDto> convertToRoutePlaceDtos(List<RoutePlace> routePlaces, LocalTime startTime) {
+        LocalTime currentTime = startTime != null ? startTime : LocalTime.of(10, 0);
+        
+        return routePlaces.stream()
+            .map(routePlace -> {
+                LocalTime arrivalTime = routePlace.getArrivalTime() != null ? routePlace.getArrivalTime() : currentTime;
+                LocalTime departureTime = routePlace.getDepartureTime() != null ? 
+                    routePlace.getDepartureTime() : arrivalTime.plusMinutes(routePlace.getRecommendDurationMinutes());
+                
+                RouteDetailResponseDto.PlaceDto placeDto = RouteDetailResponseDto.PlaceDto.builder()
+                    .placeId(routePlace.getPlace().getPlaceId())
+                    .name(routePlace.getPlace().getNameKo())
+                    .description(routePlace.getPlace().getDescriptionKo())
+                    .latitude(BigDecimal.valueOf(routePlace.getPlace().getLatitude()))
+                    .longitude(BigDecimal.valueOf(routePlace.getPlace().getLongitude()))
+                    .address(routePlace.getPlace().getAddress())
+                    .imageUrls(Arrays.asList(routePlace.getPlace().getImageUrl()))
+                    .openingHours(routePlace.getPlace().getOpeningHours())
+                    .build();
+                
+                return RouteDetailResponseDto.RoutePlaceDto.builder()
+                    .sequenceOrder(routePlace.getVisitOrder())
+                    .place(placeDto)
+                    .recommendedDurationMinutes(routePlace.getRecommendDurationMinutes())
+                    .estimatedArrivalTime(arrivalTime)
+                    .estimatedDepartureTime(departureTime)
+                    .notes(routePlace.getNotes())
+                    .build();
+            })
+            .collect(Collectors.toList());
+    }
+
+    private List<RouteDetailResponseDto.RouteTransportDto> convertToRouteTransportDtos(List<RouteTransport> routeTransports) {
+        return routeTransports.stream()
+            .map(transport -> RouteDetailResponseDto.RouteTransportDto.builder()
+                .fromPlaceName(transport.getFromPlace().getPlace().getNameKo())
+                .toPlaceName(transport.getToPlace().getPlace().getNameKo())
+                .transportMode(transport.getTransportMode())
+                .durationMinutes(transport.getDurationMinutes())
+                .distanceMeters(transport.getDistanceMeters())
+                .costKrw(transport.getCostKrw())
+                .directions(transport.getDirections())
+                .build())
+            .collect(Collectors.toList());
     }
 
     private List<RouteDetailResponseDto.RoutePlaceDto> createMockRoutePlaces(LocalTime startTime) {
