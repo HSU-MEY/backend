@@ -25,7 +25,6 @@ public class RouteDetailResponseDto {
     private Integer estimatedCost;
     private List<LocalTime> suggestedStartTimes;
     private List<RoutePlaceDto> routePlaces;
-    private List<RouteTransportDto> routeTransports;
 
     @Getter
     @Builder
@@ -55,17 +54,4 @@ public class RouteDetailResponseDto {
         private Map<String, String> openingHours;
     }
 
-    @Getter
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class RouteTransportDto {
-        private String fromPlaceName;
-        private String toPlaceName;
-        private String transportMode;
-        private Integer durationMinutes;
-        private Integer distanceMeters;
-        private Integer costKrw;
-        private Object directions;
-    }
 }

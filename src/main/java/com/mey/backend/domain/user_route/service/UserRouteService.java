@@ -116,7 +116,10 @@ public class UserRouteService {
     }
 
     private UserRouteListResponseDto.SavedRouteDto convertToSavedRouteDto(UserRoute userRoute) {
-        LocalDate plannedDate = userRoute.getPlannedStartDate().toLocalDate();
+        LocalDate plannedDate = userRoute.getPlannedStartDate() != null ? 
+            LocalDate.of(userRoute.getPlannedStartDate().getYear() + 1900, 
+                        userRoute.getPlannedStartDate().getMonth() + 1, 
+                        userRoute.getPlannedStartDate().getDate()) : null;
         LocalDate today = LocalDate.now();
         
         return UserRouteListResponseDto.SavedRouteDto.builder()
@@ -127,8 +130,8 @@ public class UserRouteService {
             .totalDurationMinutes(userRoute.getRoute().getTotalDurationMinutes())
             .preferredStartDate(plannedDate)
             .preferredStartTime(userRoute.getPlannedStartTime() != null ? userRoute.getPlannedStartTime().toLocalTime() : null)
-            .isPastDate(plannedDate.isBefore(today))
-            .daysUntilTrip((int) ChronoUnit.DAYS.between(today, plannedDate))
+            .isPastDate(plannedDate != null && plannedDate.isBefore(today))
+            .daysUntilTrip(plannedDate != null ? (int) ChronoUnit.DAYS.between(today, plannedDate) : 0)
             .savedAt(userRoute.getCreatedAt())
             .build();
     }

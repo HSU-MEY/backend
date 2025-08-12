@@ -6,7 +6,6 @@ import com.mey.backend.domain.route.entity.RoutePlace;
 import com.mey.backend.domain.route.entity.Theme;
 import com.mey.backend.domain.route.repository.RoutePlaceRepository;
 import com.mey.backend.domain.route.repository.RouteRepository;
-import com.mey.backend.domain.route.repository.RouteTransportRepository;
 import com.mey.backend.global.exception.RouteException;
 import com.mey.backend.global.payload.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
@@ -27,7 +26,6 @@ public class RouteService {
 
     private final RouteRepository routeRepository;
     private final RoutePlaceRepository routePlaceRepository;
-    private final RouteTransportRepository routeTransportRepository;
 
     public RouteRecommendListResponseDto getRecommendedRoutes(String theme, String region, LocalDate date, int limit, int offset) {
         Theme themeEnum = null;
@@ -119,24 +117,16 @@ public class RouteService {
             .orElseThrow(() -> new RouteException(ErrorStatus.ROUTE_NOT_FOUND));
 
         // 실제 RoutePlace 데이터 조회
-//        List<RoutePlace> routePlaces = routePlaceRepository.findByRouteIdOrderByVisitOrder(routeId);
-//        List<RouteTransport> routeTransports = routeTransportRepository.findByRouteId(routeId);
-//
-//        // 데이터가 있으면 실제 데이터 사용, 없으면 모킹 데이터 사용
-//        List<RouteDetailResponseDto.RoutePlaceDto> placeDtos;
-//        List<RouteDetailResponseDto.RouteTransportDto> transportDtos;
-//
-//        if (!routePlaces.isEmpty()) {
-//            placeDtos = convertToRoutePlaceDtos(routePlaces, startTime);
-//        } else {
-//            placeDtos = createMockRoutePlaces(startTime);
-//        }
-//
-//        if (!routeTransports.isEmpty()) {
-//            transportDtos = convertToRouteTransportDtos(routeTransports);
-//        } else {
-//            transportDtos = createMockRouteTransports();
-//        }
+        List<RoutePlace> routePlaces = routePlaceRepository.findByRouteIdOrderByVisitOrder(routeId);
+
+        // 데이터가 있으면 실제 데이터 사용, 없으면 모킹 데이터 사용
+        List<RouteDetailResponseDto.RoutePlaceDto> placeDtos;
+
+        if (!routePlaces.isEmpty()) {
+            placeDtos = convertToRoutePlaceDtos(routePlaces, startTime);
+        } else {
+            placeDtos = createMockRoutePlaces(startTime);
+        }
 
         return RouteDetailResponseDto.builder()
             .routeId(route.getId())
@@ -147,8 +137,7 @@ public class RouteService {
             .totalDurationMinutes(route.getTotalDurationMinutes())
             .estimatedCost((int) route.getTotalCost())
             .suggestedStartTimes(getAvailableTimes())
-//            .routePlaces(placeDtos)
-//            .routeTransports(transportDtos)
+            .routePlaces(placeDtos)
             .build();
     }
 
@@ -181,20 +170,6 @@ public class RouteService {
                     .notes(routePlace.getNotes())
                     .build();
             })
-            .collect(Collectors.toList());
-    }
-
-    private List<RouteDetailResponseDto.RouteTransportDto> convertToRouteTransportDtos(List<RouteTransport> routeTransports) {
-        return routeTransports.stream()
-            .map(transport -> RouteDetailResponseDto.RouteTransportDto.builder()
-                .fromPlaceName(transport.getFromPlace().getPlace().getNameKo())
-                .toPlaceName(transport.getToPlace().getPlace().getNameKo())
-                .transportMode(transport.getTransportMode())
-                .durationMinutes(transport.getDurationMinutes())
-                .distanceMeters(transport.getDistanceMeters())
-                .costKrw(transport.getCostKrw())
-                .directions(transport.getDirections())
-                .build())
             .collect(Collectors.toList());
     }
 
@@ -255,17 +230,4 @@ public class RouteService {
         );
     }
 
-    private List<RouteDetailResponseDto.RouteTransportDto> createMockRouteTransports() {
-        return Arrays.asList(
-            RouteDetailResponseDto.RouteTransportDto.builder()
-                .fromPlaceName("명동 쇼핑센터")
-                .toPlaceName("명동성당")
-                .transportMode("도보")
-                .durationMinutes(15)
-                .distanceMeters(800)
-                .costKrw(0)
-                .directions(Map.of("description", "명동길을 따라 직진"))
-                .build()
-        );
-    }
 }
