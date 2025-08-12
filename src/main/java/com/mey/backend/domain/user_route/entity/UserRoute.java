@@ -41,8 +41,11 @@ public class UserRoute extends BaseTimeEntity {
     private Date plannedStartDate;
 
     @Column(nullable = false)
+    private LocalDateTime plannedStartTime;
+
+    @Column
     private LocalDateTime startedAt;
 
-    @Column(nullable = false)
+    @Column
     private LocalDateTime completedAt;
 }

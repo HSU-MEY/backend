@@ -23,6 +23,13 @@ public enum ErrorStatus implements BaseStatus {
 
     // Place Error
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "PLACE_404", "해당 장소를 찾을 수 없습니다."),
+    
+    // Route Error
+    ROUTE_NOT_FOUND(HttpStatus.NOT_FOUND, "ROUTE_404", "해당 루트를 찾을 수 없습니다."),
+    
+    // UserRoute Error
+    USER_ROUTE_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_ROUTE_404", "해당 사용자 루트를 찾을 수 없습니다."),
+    ROUTE_ALREADY_SAVED(HttpStatus.BAD_REQUEST, "USER_ROUTE_400", "이미 저장된 루트입니다."),
     ;
 
     private final HttpStatus httpStatus;
