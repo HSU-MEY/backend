@@ -2,6 +2,7 @@ package com.mey.backend.domain.route.controller;
 
 import com.mey.backend.domain.route.dto.RouteDetailResponseDto;
 import com.mey.backend.domain.route.dto.RouteRecommendListResponseDto;
+import com.mey.backend.domain.route.entity.Theme;
 import com.mey.backend.domain.route.service.RouteService;
 import com.mey.backend.global.payload.CommonResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,13 +23,13 @@ public class RouteController {
 
     @GetMapping("/recommend")
     public CommonResponse<RouteRecommendListResponseDto> getRecommendedRoutes(
-            @RequestParam(required = false) String theme,
+            @RequestParam(required = false) Theme theme,
             @RequestParam(required = false) String region,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
         
-        RouteRecommendListResponseDto response = routeService.getRecommendedRoutes(theme, region, date, limit, offset);
+        RouteRecommendListResponseDto response = routeService.getRecommendedRoutes(theme, region, limit, offset);
         return CommonResponse.onSuccess(response);
     }
 
