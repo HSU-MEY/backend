@@ -61,7 +61,7 @@ public class UserRouteService {
         List<UserRoute> userRoutes;
 
         if (status != null && status != UserRouteStatus.ALL) {
-            userRoutes = userRouteRepository.findByUserAndStatusOrderByCreatedAtDesc(user, status);
+            userRoutes = userRouteRepository.findByUserAndUserRouteStatusOrderByCreatedAtDesc(user, status);
         } else {
             userRoutes = userRouteRepository.findByUserOrderByCreatedAtDesc(user);
         }

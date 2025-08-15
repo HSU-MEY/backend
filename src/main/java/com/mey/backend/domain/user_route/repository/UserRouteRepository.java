@@ -19,9 +19,7 @@ public interface UserRouteRepository extends JpaRepository<UserRoute, Long> {
     
     List<UserRoute> findByUserOrderByCreatedAtDesc(User user);
     
-    List<UserRoute> findByUserAndStatus(User user, UserRouteStatus userRouteStatus);
-    
-    List<UserRoute> findByUserAndStatusOrderByCreatedAtDesc(User user, UserRouteStatus userRouteStatus);
+    List<UserRoute> findByUserAndUserRouteStatusOrderByCreatedAtDesc(User user, UserRouteStatus userRouteStatus);
 
     Optional<UserRoute> findByUserRouteIdAndUser(Long userRouteId, User user);
     

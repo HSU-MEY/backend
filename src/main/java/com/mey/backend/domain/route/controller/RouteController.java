@@ -1,10 +1,13 @@
 package com.mey.backend.domain.route.controller;
 
+import com.mey.backend.domain.route.dto.RouteCreateRequestDto;
+import com.mey.backend.domain.route.dto.RouteCreateResponseDto;
 import com.mey.backend.domain.route.dto.RouteDetailResponseDto;
 import com.mey.backend.domain.route.dto.RouteRecommendListResponseDto;
 import com.mey.backend.domain.route.entity.Theme;
 import com.mey.backend.domain.route.service.RouteService;
 import com.mey.backend.global.payload.CommonResponse;
+import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -21,6 +24,16 @@ import java.util.List;
 public class RouteController {
 
     private final RouteService routeService;
+
+    @Operation(
+            summary = "루트 생성 (테스트 전용)",
+            description = "테스트 목적으로 새로운 루트를 생성합니다. 실제 운영 환경에서는 사용하지 마세요."
+    )
+    @PostMapping
+    public CommonResponse<RouteCreateResponseDto> createRoute(@RequestBody RouteCreateRequestDto request) {
+        RouteCreateResponseDto response = routeService.createRoute(request);
+        return CommonResponse.onSuccess(response);
+    }
 
     @GetMapping("/recommend")
     public CommonResponse<RouteRecommendListResponseDto> getRecommendedRoutes(

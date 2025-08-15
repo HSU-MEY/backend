@@ -1,5 +1,7 @@
 package com.mey.backend.domain.route.service;
 
+import com.mey.backend.domain.route.dto.RouteCreateRequestDto;
+import com.mey.backend.domain.route.dto.RouteCreateResponseDto;
 import com.mey.backend.domain.route.dto.RouteDetailResponseDto;
 import com.mey.backend.domain.route.dto.RouteRecommendListResponseDto;
 import com.mey.backend.domain.route.dto.RouteRecommendResponseDto;
@@ -8,6 +10,8 @@ import com.mey.backend.domain.route.entity.RoutePlace;
 import com.mey.backend.domain.route.entity.Theme;
 import com.mey.backend.domain.route.repository.RoutePlaceRepository;
 import com.mey.backend.domain.route.repository.RouteRepository;
+import com.mey.backend.domain.region.entity.Region;
+import com.mey.backend.domain.region.repository.RegionRepository;
 import com.mey.backend.global.exception.RouteException;
 import com.mey.backend.global.payload.status.ErrorStatus;
 import java.math.BigDecimal;
@@ -19,9 +23,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -34,25 +35,38 @@ public class RouteService {
 
     private final RouteRepository routeRepository;
     private final RoutePlaceRepository routePlaceRepository;
+    private final RegionRepository regionRepository;
 
     public RouteRecommendListResponseDto getRecommendedRoutes(List<Theme> themes, String region, int limit, int offset) {
-        Pageable pageable = PageRequest.of(offset / limit, limit);
-        List<String> themeNames = themes != null ? themes.stream()
-                .map(Theme::name)
-                .toList() : null;
-        Page<Route> routePage = routeRepository.findByThemesAndRegion(themeNames, region, pageable);
+        String themeJson = null;
+        if (themes != null && !themes.isEmpty()) {
+            List<String> themeNames = themes.stream().map(Theme::name).toList();
+            themeJson = "[" + themeNames.stream()
+                    .map(name -> "\"" + name + "\"")
+                    .reduce((a, b) -> a + "," + b)
+                    .orElse("") + "]";
+        }
+        List<Route> allRoutes = routeRepository.findByThemesAndRegion(themeJson, region);
 
-        List<RouteRecommendResponseDto> routes = routePage.getContent().stream()
+        // 수동으로 페이지네이션 적용
+        int totalCount = allRoutes.size();
+        List<Route> paginatedRoutes = allRoutes.stream()
+                .skip(offset)
+                .limit(limit)
+                .toList();
+
+        List<RouteRecommendResponseDto> routes = paginatedRoutes.stream()
                 .map(this::convertToRouteRecommendDto)
                 .toList();
 
         if (routes.isEmpty()) {
             routes = createMockRouteRecommendData();
+            totalCount = routes.size();
         }
 
         return RouteRecommendListResponseDto.builder()
                 .routes(routes)
-                .totalCount((int) routePage.getTotalElements())
+                .totalCount(totalCount)
                 .build();
     }
 
@@ -237,6 +251,47 @@ public class RouteService {
                         .notes("역사와 문화를 체험할 수 있는 장소")
                         .build()
         );
+    }
+
+    public RouteCreateResponseDto createRoute(RouteCreateRequestDto request) {
+        Region region = null;
+        if (request.getRegionId() != null) {
+            region = regionRepository.findById(request.getRegionId())
+                    .orElseThrow(() -> new RouteException(ErrorStatus.ROUTE_NOT_FOUND));
+        }
+
+        Route route = Route.builder()
+                .region(region)
+                .titleKo(request.getTitleKo())
+                .titleEn(request.getTitleEn())
+                .descriptionKo(request.getDescriptionKo())
+                .descriptionEn(request.getDescriptionEn())
+                .imageUrl(request.getImageUrl())
+                .cost(request.getCost())
+                .totalDurationMinutes(request.getTotalDurationMinutes())
+                .totalDistance(request.getTotalDistance())
+                .totalCost(request.getTotalCost())
+                .themes(request.getThemes())
+                .routeType(request.getRouteType())
+                .build();
+
+        Route savedRoute = routeRepository.save(route);
+
+        return RouteCreateResponseDto.builder()
+                .routeId(savedRoute.getId())
+                .titleKo(savedRoute.getTitleKo())
+                .titleEn(savedRoute.getTitleEn())
+                .descriptionKo(savedRoute.getDescriptionKo())
+                .descriptionEn(savedRoute.getDescriptionEn())
+                .imageUrl(savedRoute.getImageUrl())
+                .cost(savedRoute.getCost())
+                .totalDurationMinutes(savedRoute.getTotalDurationMinutes())
+                .totalDistance(savedRoute.getTotalDistance())
+                .totalCost(savedRoute.getTotalCost())
+                .themes(savedRoute.getThemes())
+                .routeType(savedRoute.getRouteType())
+                .regionName(savedRoute.getRegion() != null ? savedRoute.getRegion().getNameKo() : null)
+                .build();
     }
 
 }
