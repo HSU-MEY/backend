@@ -17,6 +17,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -34,9 +35,12 @@ public class RouteService {
     private final RouteRepository routeRepository;
     private final RoutePlaceRepository routePlaceRepository;
 
-    public RouteRecommendListResponseDto getRecommendedRoutes(Theme theme, String region, int limit, int offset) {
+    public RouteRecommendListResponseDto getRecommendedRoutes(List<Theme> themes, String region, int limit, int offset) {
         Pageable pageable = PageRequest.of(offset / limit, limit);
-        Page<Route> routePage = routeRepository.findByThemeAndRegion(theme, region, pageable);
+        List<String> themeNames = themes != null ? themes.stream()
+                .map(Theme::name)
+                .toList() : null;
+        Page<Route> routePage = routeRepository.findByThemesAndRegion(themeNames, region, pageable);
 
         List<RouteRecommendResponseDto> routes = routePage.getContent().stream()
                 .map(this::convertToRouteRecommendDto)
@@ -58,7 +62,7 @@ public class RouteService {
                 .routeId(route.getId())
                 .title(route.getTitleKo())
                 .description(route.getDescriptionKo())
-                .theme(route.getTheme().name())
+                .theme(route.getThemes().isEmpty() ? "" : route.getThemes().get(0).name())
                 .totalDistanceKm(BigDecimal.valueOf(route.getTotalDistance()))
                 .totalDurationMinutes(route.getTotalDurationMinutes())
                 .estimatedCost((int) route.getTotalCost())
@@ -130,7 +134,7 @@ public class RouteService {
                 .routeId(route.getId())
                 .title(route.getTitleKo())
                 .description(route.getDescriptionKo())
-                .theme(route.getTheme().name())
+                .theme(route.getThemes().isEmpty() ? "" : route.getThemes().get(0).name())
                 .totalDistanceKm(BigDecimal.valueOf(route.getTotalDistance()))
                 .totalDurationMinutes(route.getTotalDurationMinutes())
                 .estimatedCost((int) route.getTotalCost())
@@ -191,7 +195,7 @@ public class RouteService {
                                 .latitude(new BigDecimal("37.563600"))
                                 .longitude(new BigDecimal("126.982400"))
                                 .address("서울특별시 중구 명동길 14")
-                                .imageUrls(Arrays.asList("https://example.com/place1.jpg"))
+                                .imageUrls(List.of("https://example.com/place1.jpg"))
                                 .openingHours(Map.of(
                                         "monday", "10:00-22:00",
                                         "tuesday", "10:00-22:00",
@@ -216,7 +220,7 @@ public class RouteService {
                                 .latitude(new BigDecimal("37.563500"))
                                 .longitude(new BigDecimal("126.986200"))
                                 .address("서울특별시 중구 명동길 74")
-                                .imageUrls(Arrays.asList("https://example.com/place2.jpg"))
+                                .imageUrls(List.of("https://example.com/place2.jpg"))
                                 .openingHours(Map.of(
                                         "monday", "06:00-21:00",
                                         "tuesday", "06:00-21:00",

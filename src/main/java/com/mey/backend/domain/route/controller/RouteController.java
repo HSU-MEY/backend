@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 
 @Tag(name = "루트", description = "루트 관련 API")
 @RestController
@@ -23,13 +24,12 @@ public class RouteController {
 
     @GetMapping("/recommend")
     public CommonResponse<RouteRecommendListResponseDto> getRecommendedRoutes(
-            @RequestParam(required = false) Theme theme,
+            @RequestParam(required = false) List<Theme> themes,
             @RequestParam(required = false) String region,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
         
-        RouteRecommendListResponseDto response = routeService.getRecommendedRoutes(theme, region, limit, offset);
+        RouteRecommendListResponseDto response = routeService.getRecommendedRoutes(themes, region, limit, offset);
         return CommonResponse.onSuccess(response);
     }
 
