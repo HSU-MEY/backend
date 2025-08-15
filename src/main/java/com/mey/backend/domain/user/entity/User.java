@@ -20,8 +20,8 @@ public class User implements UserDetails {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
-    private String username;
+    @Column(nullable = false)
+    private String nickname;
 
     @Column(nullable = false)
     private String password;
@@ -46,11 +46,20 @@ public class User implements UserDetails {
     private boolean enabled = true;
 
     @Builder
-    public User(String username, String password, String email, Role role) {
-        this.username = username;
+    public User(String nickname, String password, String email, Role role) {
+        this.nickname = nickname;
         this.password = password;
         this.email = email;
         this.role = role != null ? role : Role.USER;
+    }
+
+    @Override
+    public String getUsername() {
+        return email;
+    }
+
+    public String getNickname() {
+        return nickname;
     }
 
     @Override

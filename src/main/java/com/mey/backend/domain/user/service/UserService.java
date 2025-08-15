@@ -25,8 +25,8 @@ public class UserService {
         User optionalUser = userRepository.findById(user.getId())
                 .orElseThrow(() -> new RuntimeException("사용자 없음"));
 
-//        if (request.getUsername() != null) {
-//            optionalUser.setUsername(request.getUsername());
+//        if (request.getNickname() != null) {
+//            optionalUser.setNickname(request.getNickname());
 //        }
 
         if (request.getPassword() != null) {
