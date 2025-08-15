@@ -5,6 +5,7 @@ import com.mey.backend.domain.user.dto.UserInfoUpdateRequest;
 import com.mey.backend.domain.user.entity.User;
 import com.mey.backend.domain.user.service.UserService;
 import com.mey.backend.domain.user_route.dto.*;
+import com.mey.backend.domain.user_route.entity.UserRouteStatus;
 import com.mey.backend.domain.user_route.service.UserRouteService;
 import com.mey.backend.global.payload.CommonResponse;
 import com.mey.backend.global.security.annotation.CurrentUser;
@@ -68,7 +69,7 @@ public class UserController {
     @GetMapping("/routes")
     public CommonResponse<UserRouteListResponseDto> getUserRoutes(
             @Parameter(hidden = true) @CurrentUser User user,
-            @RequestParam(required = false) String status) {
+            @RequestParam(required = false) UserRouteStatus status) {
         UserRouteListResponseDto response = userRouteService.getUserRoutes(user, status);
         return CommonResponse.onSuccess(response);
     }

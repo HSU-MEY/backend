@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.Date;
+import lombok.Setter;
 
 @Entity
 @Table(name = "user_routes")
@@ -40,9 +41,11 @@ public class UserRoute extends BaseTimeEntity {
     @Column(nullable = false)
     private int currentPlaceOrder;
 
+    @Setter
     @Column(nullable = false)
     private Date plannedStartDate;
 
+    @Setter
     @Column(nullable = false)
     private LocalDateTime plannedStartTime;
 
