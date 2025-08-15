@@ -3,15 +3,19 @@ package com.mey.backend.domain.route.entity;
 import com.mey.backend.domain.common.entity.BaseTimeEntity;
 import com.mey.backend.domain.region.entity.Region;
 import jakarta.persistence.*;
-import lombok.Getter;
-import lombok.Setter;
+import lombok.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
-import java.time.LocalDateTime;
+import java.util.List;
 
 @Entity
 @Table(name = "routes")
 @Getter
 @Setter
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+@Builder
 public class Route extends BaseTimeEntity {
 
     @Id
@@ -49,9 +53,9 @@ public class Route extends BaseTimeEntity {
     @Column(nullable = false)
     private double totalCost;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Theme theme;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = "json")
+    private List<Theme> themes;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

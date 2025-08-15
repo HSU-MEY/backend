@@ -6,9 +6,8 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum RouteType {
-    AI("AI"),
-    POPULAR("POPULAR"),
-    THEMED("THEMED");
+    AI("AI"),               // AI가 생성한 루트
+    POPULAR("POPULAR");     // MD가 선정한 루트
 
     private final String typeOfRoute;
 }
