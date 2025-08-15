@@ -15,7 +15,7 @@ spring:
         show-sql: true
         format-sql: true
         hbm2ddl:
-          auto: create-drop
+          auto: create
 
 logging:
   level:
