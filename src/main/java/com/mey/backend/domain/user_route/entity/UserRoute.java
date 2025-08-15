@@ -4,9 +4,11 @@ import com.mey.backend.domain.common.entity.BaseTimeEntity;
 import com.mey.backend.domain.route.entity.Route;
 import com.mey.backend.domain.user.entity.User;
 import jakarta.persistence.*;
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
-import lombok.Setter;
 
 import java.time.LocalDateTime;
 import java.util.Date;
@@ -14,8 +16,9 @@ import java.util.Date;
 @Entity
 @Table(name = "user_routes")
 @Getter
-@Setter
-@NoArgsConstructor
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
+@Builder
 public class UserRoute extends BaseTimeEntity {
 
     @Id
@@ -32,7 +35,7 @@ public class UserRoute extends BaseTimeEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private Status status;
+    private UserRouteStatus userRouteStatus;
 
     @Column(nullable = false)
     private int currentPlaceOrder;

@@ -11,7 +11,5 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UserRouteSaveResponseDto {
     
-    private Boolean success;
-    private String message;
     private Long savedRouteId;
 }

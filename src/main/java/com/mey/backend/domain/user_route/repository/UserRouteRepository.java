@@ -2,7 +2,7 @@ package com.mey.backend.domain.user_route.repository;
 
 import com.mey.backend.domain.route.entity.Route;
 import com.mey.backend.domain.user.entity.User;
-import com.mey.backend.domain.user_route.entity.Status;
+import com.mey.backend.domain.user_route.entity.UserRouteStatus;
 import com.mey.backend.domain.user_route.entity.UserRoute;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
@@ -19,9 +19,9 @@ public interface UserRouteRepository extends JpaRepository<UserRoute, Long> {
     
     List<UserRoute> findByUserOrderByCreatedAtDesc(User user);
     
-    List<UserRoute> findByUserAndStatus(User user, Status status);
+    List<UserRoute> findByUserAndStatus(User user, UserRouteStatus userRouteStatus);
     
-    List<UserRoute> findByUserAndStatusOrderByCreatedAtDesc(User user, Status status);
+    List<UserRoute> findByUserAndStatusOrderByCreatedAtDesc(User user, UserRouteStatus userRouteStatus);
 
     Optional<UserRoute> findByUserRouteIdAndUser(Long userRouteId, User user);
     
