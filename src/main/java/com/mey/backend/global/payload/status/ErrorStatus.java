@@ -14,15 +14,21 @@ public enum ErrorStatus implements BaseStatus {
     FORBIDDEN(HttpStatus.FORBIDDEN, "COMMON_403", "금지된 요청입니다."),
 
     // Auth Error
-    USERNAME_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "AUTH_4001", "이미 존재하는 사용자명입니다."),
-    EMAIL_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "AUTH_4002", "이미 존재하는 이메일입니다."),
-    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_4011", "유효하지 않은 리프레시 토큰입니다."),
+    EMAIL_ALREADY_EXISTS(HttpStatus.BAD_REQUEST, "AUTH_4001", "이미 존재하는 이메일입니다."),
+    INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_4002", "유효하지 않은 리프레시 토큰입니다."),
 
     // Member Error
-    USERNAME_NOT_EXIST(HttpStatus.BAD_REQUEST, "MEMBER_4000", "사용자명이 존재하지 않습니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4001", "사용자를 찾을 수 없습니다."),
 
     // Place Error
-    PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "PLACE_404", "해당 장소를 찾을 수 없습니다."),
+    PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "PLACE_4001", "해당 장소를 찾을 수 없습니다."),
+    
+    // Route Error
+    ROUTE_NOT_FOUND(HttpStatus.NOT_FOUND, "ROUTE_4001", "해당 루트를 찾을 수 없습니다."),
+    
+    // UserRoute Error
+    USER_ROUTE_NOT_FOUND(HttpStatus.NOT_FOUND, "USER_ROUTE_4001", "해당 사용자 루트를 찾을 수 없습니다."),
+    ROUTE_ALREADY_SAVED(HttpStatus.BAD_REQUEST, "USER_ROUTE_4002", "이미 저장된 루트입니다."),
     ;
 
     private final HttpStatus httpStatus;

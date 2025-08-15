@@ -41,8 +41,8 @@ public class CurrentUserArgumentResolver implements HandlerMethodArgumentResolve
             throw new AuthException(ErrorStatus.UNAUTHORIZED);
         }
         
-        String username = authentication.getName();
-        return userRepository.findByUsername(username)
-                .orElseThrow(() -> new UserException(ErrorStatus.USERNAME_NOT_EXIST));
+        String email = authentication.getName();
+        return userRepository.findByEmail(email)
+                .orElseThrow(() -> new UserException(ErrorStatus.USER_NOT_FOUND));
     }
 }

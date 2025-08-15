@@ -33,31 +33,31 @@ public class JwtTokenProvider {
         this.userDetailsService = userDetailsService;
     }
 
-    public String createAccessToken(String username) {
+    public String createAccessToken(String email) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + accessTokenValidityInMilliseconds);
 
         return Jwts.builder()
-                .subject(username)
+                .subject(email)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
                 .compact();
     }
 
-    public String createRefreshToken(String username) {
+    public String createRefreshToken(String email) {
         Date now = new Date();
         Date expiryDate = new Date(now.getTime() + refreshTokenValidityInMilliseconds);
 
         return Jwts.builder()
-                .subject(username)
+                .subject(email)
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(key)
                 .compact();
     }
 
-    public String getUsernameFromToken(String token) {
+    public String getEmailFromToken(String token) {
         Claims claims = Jwts.parser()
                 .verifyWith(key)
                 .build()
@@ -86,8 +86,8 @@ public class JwtTokenProvider {
     }
 
     public Authentication getAuthentication(String token) {
-        String username = getUsernameFromToken(token);
-        UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+        String email = getEmailFromToken(token);
+        UserDetails userDetails = userDetailsService.loadUserByUsername(email);
         return new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
     }
 }

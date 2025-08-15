@@ -9,14 +9,14 @@ import lombok.Getter;
 @AllArgsConstructor
 public class UserInfoResponse {
     private Long id;
-    private String username;
+    private String nickname;
     private String email;
     private Role role;
 
     public static UserInfoResponse from(User user) {
         return new UserInfoResponse(
                 user.getId(),
-                user.getUsername(),
+                user.getNickname(),
                 user.getEmail(),
                 user.getRole()
         );
