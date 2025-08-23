@@ -19,7 +19,7 @@ public enum ErrorStatus implements BaseStatus {
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "AUTH_4011", "유효하지 않은 리프레시 토큰입니다."),
 
     // Member Error
-    USERNAME_NOT_EXIST(HttpStatus.BAD_REQUEST, "MEMBER_4001", "사용자명이 존재하지 않습니다."),
+    USER_NOT_FOUND(HttpStatus.NOT_FOUND, "MEMBER_4001", "사용자명이 존재하지 않습니다."),
 
     // Place Error
     PLACE_NOT_FOUND(HttpStatus.NOT_FOUND, "PLACE_4001", "해당 장소를 찾을 수 없습니다."),
