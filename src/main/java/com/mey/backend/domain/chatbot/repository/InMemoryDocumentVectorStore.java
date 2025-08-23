@@ -28,7 +28,6 @@ import java.util.stream.Collectors;
  * Spring AI의 SimpleVectorStore를 활용합니다.
  */
 @Repository
-@RequiredArgsConstructor
 @Slf4j
 public class InMemoryDocumentVectorStore {
 
@@ -36,7 +35,13 @@ public class InMemoryDocumentVectorStore {
     private final DocumentProcessingService documentProcessingService;
 
     // Spring AI의 인메모리 SimpleVectorStore 생성
-    private final VectorStore vectorStore = SimpleVectorStore.builder(embeddingService.getEmbeddingModel()).build();
+    private final VectorStore vectorStore;
+
+    public InMemoryDocumentVectorStore(EmbeddingService embeddingService, DocumentProcessingService documentProcessingService) {
+        this.embeddingService = embeddingService;
+        this.documentProcessingService = documentProcessingService;
+        this.vectorStore = SimpleVectorStore.builder(embeddingService.getEmbeddingModel()).build();
+    }
 
     /**
      * 문서를 벡터 스토어에 추가합니다.
