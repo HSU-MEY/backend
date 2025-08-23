@@ -38,7 +38,7 @@ public class RagController {
     private final RagService ragService;
 
     /**
-     * PDF 문서를 업로드하여 벡터 스토어에 저장합니다.
+     * JSON 문서를 업로드하여 벡터 스토어에 저장합니다.
      */
     @Operation(
             summary = "json 문서 업로드",
@@ -52,7 +52,7 @@ public class RagController {
     @ApiResponse(responseCode = "500", description = "서버 오류")
     @PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public CommonResponse<DocumentUploadResult> uploadDocument(
-            @Parameter(description = "업로드할 PDF 파일", required = true)
+            @Parameter(description = "업로드할 JSON 파일", required = true)
             @RequestParam("file") MultipartFile file
     ) {
         log.info("문서 업로드 요청 받음: {}", file.getOriginalFilename());

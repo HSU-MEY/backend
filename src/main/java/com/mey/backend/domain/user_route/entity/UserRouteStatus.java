@@ -5,7 +5,8 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public enum Status {
+public enum UserRouteStatus {
+    ALL("ALL"),
     NOT_STARTED("NOT_STARTED"),
     ON_GOING("ON_GOING"),
     COMPLETED("COMPLETED");
