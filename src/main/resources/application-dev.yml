@@ -6,7 +6,8 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:
-      mode: never
+      mode: always
+      data-locations: classpath:sql/data-mysql.sql
 
   jpa:
     properties:
@@ -15,7 +16,7 @@ spring:
         show-sql: true
         format-sql: true
         hbm2ddl:
-          auto: create
+          auto: create-drop
 
 logging:
   level:
