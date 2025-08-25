@@ -24,6 +24,10 @@ repositories {
 }
 
 dependencies {
+
+    // OpenAI Java SDK (안정 버전)
+    implementation 'com.openai:openai-java:0.10.0'
+
     // spring boot starter
     implementation 'org.springframework.boot:spring-boot-starter-web'
     implementation 'org.springframework.boot:spring-boot-starter-validation'

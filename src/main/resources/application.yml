@@ -16,3 +16,9 @@ jwt:
   secret: ${JWT_SECRET:mySecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLongToEnsureSecurityAndValidityForHmacSha256Algorithm}
   access-token-validity: 3600000  # 1시간 (밀리초)
   refresh-token-validity: 604800000  # 7일 (밀리초)
+
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY}
+    url: https://api.openai.com/v1/chat/completions
