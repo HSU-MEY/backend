@@ -1,17 +1,23 @@
-package com.mey.backend.domain.itinerary.entity;
+package com.mey.backend.domain.route.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
 
 @Entity
 @Table(name = "itinerary_stops")
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor @Builder
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ItineraryStop {
 
-    @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY) @JoinColumn(name = "itinerary_id")
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "itinerary_id")
     private Itinerary itinerary;
 
     private Integer orderIndex;      // 방문 순서 (0..N-1)

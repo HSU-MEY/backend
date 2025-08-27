@@ -1,5 +1,7 @@
 package com.mey.backend.domain.route.controller;
 
+import com.mey.backend.domain.route.dto.CreateItineraryRequestDto;
+import com.mey.backend.domain.route.dto.CreateItineraryResponseDto;
 import com.mey.backend.domain.route.dto.RouteCreateRequestDto;
 import com.mey.backend.domain.route.dto.RouteCreateResponseDto;
 import com.mey.backend.domain.route.dto.RouteDetailResponseDto;
@@ -11,6 +13,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -32,6 +35,14 @@ public class RouteController {
     @PostMapping
     public CommonResponse<RouteCreateResponseDto> createRoute(@RequestBody RouteCreateRequestDto request) {
         RouteCreateResponseDto response = routeService.createRoute(request);
+        return CommonResponse.onSuccess(response);
+    }
+
+    @PostMapping("/ai-recommend")
+    public CommonResponse<CreateItineraryResponseDto> create(
+            @Validated @RequestBody CreateItineraryRequestDto request) {
+
+        CreateItineraryResponseDto response = routeService.createItinerary2(request);
         return CommonResponse.onSuccess(response);
     }
 

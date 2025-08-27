@@ -1,13 +1,8 @@
 package com.mey.backend.domain.route.service;
 
-import com.mey.backend.domain.route.dto.RouteCreateRequestDto;
-import com.mey.backend.domain.route.dto.RouteCreateResponseDto;
-import com.mey.backend.domain.route.dto.RouteDetailResponseDto;
-import com.mey.backend.domain.route.dto.RouteRecommendListResponseDto;
-import com.mey.backend.domain.route.dto.RouteRecommendResponseDto;
-import com.mey.backend.domain.route.entity.Route;
-import com.mey.backend.domain.route.entity.RoutePlace;
-import com.mey.backend.domain.route.entity.Theme;
+import com.mey.backend.domain.route.dto.*;
+import com.mey.backend.domain.route.entity.*;
+import com.mey.backend.domain.route.repository.ItineraryRepository;
 import com.mey.backend.domain.route.repository.RoutePlaceRepository;
 import com.mey.backend.domain.route.repository.RouteRepository;
 import com.mey.backend.domain.region.entity.Region;
@@ -16,12 +11,12 @@ import com.mey.backend.global.exception.RouteException;
 import com.mey.backend.global.payload.status.ErrorStatus;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +31,66 @@ public class RouteService {
     private final RouteRepository routeRepository;
     private final RoutePlaceRepository routePlaceRepository;
     private final RegionRepository regionRepository;
+
+
+    private final SequencePlanner planner; // GptSequencePlanner 등 @Component 구현체가 주입됨
+    private final ItineraryRepository itineraryRepository; // JPA 리포지토리
+
+    public CreateItineraryResponseDto createItinerary2(CreateItineraryRequestDto req) {
+        if (req == null || req.getPlaces() == null || req.getPlaces().size() < 2)
+            throw new IllegalArgumentException("places는 최소 2개 이상이어야 합니다.");
+        if (req.getPlaceCount() != req.getPlaces().size())
+            throw new IllegalArgumentException("placeCount와 places 길이가 일치해야 합니다.");
+        if (req.getPlaces().stream().anyMatch(p -> p.getLat() == null || p.getLng() == null))
+            throw new IllegalArgumentException("모든 좌표에 lat/lng가 필요합니다.");
+
+        IntStream.range(0, req.getPlaces().size()).forEach(i -> {
+            var c = req.getPlaces().get(i);
+            if (c.getOriginalIndex() == null) c.setOriginalIndex(i);
+        });
+
+        SequencePlanner.PlanResult plan = planner.plan(req.getPlaces());
+
+        Itinerary it = Itinerary.builder()
+                .totalDistanceMeters(plan.totalDistanceMeters())
+                .createdAt(LocalDateTime.now())
+                .build();
+
+        for (int order = 0; order < plan.order().size(); order++) {
+            int idx = plan.order().get(order);
+            CoordinateDto c = req.getPlaces().get(idx);
+
+            it.getStops().add(
+                    ItineraryStop.builder()
+                            .itinerary(it)
+                            .orderIndex(order)
+                            .originalIndex(c.getOriginalIndex())
+                            .lat(c.getLat())
+                            .lng(c.getLng())
+                            .build()
+            );
+        }
+
+        Itinerary saved = itineraryRepository.save(it);
+
+        List<OrderedStopDto> orderedStops = saved.getStops().stream()
+                .sorted(Comparator.comparingInt(ItineraryStop::getOrderIndex))
+                .map(s -> OrderedStopDto.builder()
+                        .order(s.getOrderIndex())
+                        .coord(CoordinateDto.builder()
+                                .lat(s.getLat())
+                                .lng(s.getLng())
+                                .originalIndex(s.getOriginalIndex())
+                                .build())
+                        .build())
+                .toList();
+
+        return CreateItineraryResponseDto.builder()
+                .itineraryId(saved.getId())
+                .orderedStops(orderedStops)
+                .totalDistanceMeters(saved.getTotalDistanceMeters())
+                .build();
+    }
 
     public RouteRecommendListResponseDto getRecommendedRoutes(List<Theme> themes, String region, int limit, int offset) {
         String themeJson = null;
@@ -69,7 +124,6 @@ public class RouteService {
                 .totalCount(totalCount)
                 .build();
     }
-
 
     private RouteRecommendResponseDto convertToRouteRecommendDto(Route route) {
         return RouteRecommendResponseDto.builder()
@@ -293,5 +347,4 @@ public class RouteService {
                 .regionName(savedRoute.getRegion() != null ? savedRoute.getRegion().getNameKo() : null)
                 .build();
     }
-
 }
