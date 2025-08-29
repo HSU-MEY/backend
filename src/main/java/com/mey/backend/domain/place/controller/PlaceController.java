@@ -29,7 +29,7 @@ public class PlaceController {
 
     @GetMapping("/popular")
     public List<PlaceResponseDto> getPopularPlaces() {
-        return placeService.getPopularPlaces();
+        return placeService.getPopularPlaces2();
     }
 
     @GetMapping("/theme")
