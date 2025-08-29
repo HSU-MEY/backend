@@ -3,6 +3,7 @@ package com.mey.backend.domain.route.service;
 import com.mey.backend.domain.route.dto.*;
 import com.mey.backend.domain.route.entity.*;
 import com.mey.backend.domain.route.repository.ItineraryRepository;
+import com.mey.backend.domain.route.repository.ItineraryStopRepository;
 import com.mey.backend.domain.route.repository.RoutePlaceRepository;
 import com.mey.backend.domain.route.repository.RouteRepository;
 import com.mey.backend.domain.region.entity.Region;
@@ -35,6 +36,219 @@ public class RouteService {
 
     private final SequencePlanner planner; // GptSequencePlanner 등 @Component 구현체가 주입됨
     private final ItineraryRepository itineraryRepository; // JPA 리포지토리
+    private final ItineraryStopRepository itineraryStopRepository;
+    private final TransitClient transitClient; // 실제 구현: TmapTransitClient 등
+
+    public StartRouteResponseDto startRoute(Long routeId, StartRouteRequestDto req) {
+
+        LocalDateTime dep = (req.getDepartureTime() != null) ? req.getDepartureTime() : LocalDateTime.now();
+
+        // 1) 스톱 조회 (orderIndex ASC)
+        // List<ItineraryStop> stops = itineraryStopRepository.findByItinerary_IdOrderByOrderIndexAsc(routeId);
+        List<ItineraryStop> stops = itineraryStopRepository.findByItineraryIdOrderByOrderIndexAsc(routeId);
+
+        if (stops == null || stops.isEmpty()) {
+            return StartRouteResponseDto.builder()
+                    .routeId(routeId)
+                    .totalDistanceMeters(0)
+                    .totalDurationSeconds(0)
+                    .totalFare(0)
+                    .currency("KRW")
+                    .segments(List.of())
+                    .build();
+        }
+
+        // 혹시 정렬 보장이 없다면 방어용 정렬
+        stops.sort(Comparator.comparing(s -> s.getOrderIndex() == null ? Integer.MAX_VALUE : s.getOrderIndex()));
+
+        // 2) 현재 위치부터 차례대로 구간 생성
+        String fromName = "현재 위치";
+        double fromLat  = req.getCurrentLat();
+        double fromLng  = req.getCurrentLng();
+
+        List<TransitSegmentDto> segments = new ArrayList<>();
+
+        for (ItineraryStop stop : stops) {
+            Double toLat = stop.getLat();
+            Double toLng = stop.getLng();
+            if (toLat == null || toLng == null) {
+                throw new IllegalStateException("ItineraryStop lat/lng is null. stopId=" + stop.getId());
+            }
+
+            String toName = (stop.getName() != null && !stop.getName().isBlank())
+                    ? stop.getName()
+                    : ("장소 " + (stop.getOrderIndex() != null ? stop.getOrderIndex() + 1 : "?"));
+
+            // 실제 대중교통 API 호출 (Tmap 구현체 등)
+            TransitSegmentDto seg = transitClient.route(
+                    fromName, fromLat, fromLng,
+                    toName,   toLat,   toLng,
+                    dep
+            );
+            segments.add(seg);
+
+            // 다음 구간 출발점/출발시각 갱신
+            fromName = toName;
+            fromLat  = toLat;
+            fromLng  = toLng;
+            if (seg.getDurationSeconds() > 0) {
+                dep = dep.plusSeconds(seg.getDurationSeconds());
+            }
+        }
+
+        // 3) 합계
+        int totalDist = segments.stream().mapToInt(TransitSegmentDto::getDistanceMeters).sum();
+        int totalDur  = segments.stream().mapToInt(TransitSegmentDto::getDurationSeconds).sum();
+        int totalFare = segments.stream().mapToInt(TransitSegmentDto::getFare).sum();
+
+        // 4) 응답
+        return StartRouteResponseDto.builder()
+                .routeId(routeId)
+                .totalDistanceMeters(totalDist)
+                .totalDurationSeconds(totalDur)
+                .totalFare(totalFare)
+                .currency("KRW")
+                .segments(segments)
+                .build();
+    }
+
+    public StartRouteResponseDto startRoute2(Long routeId, StartRouteRequestDto req) {
+
+        // TODO 실제 구현:
+        // 1) routeId로 DB에서 순서가 정해진 장소 목록(예: itinerary stops)을 조회
+        // 2) 현재 위치 → 1번 장소, i → i+1 각 구간에 대해 외부 길찾기 API 호출
+        // 3) 외부 API 응답을 TransitSegmentDto/TransitStepDto로 매핑
+
+        // 지금은 더미 데이터 반환:
+        // 가정: 해당 루트는 총 3개 장소로 구성
+        var now = (req.getDepartureTime() != null) ? req.getDepartureTime() : LocalDateTime.now();
+
+        // 현재 위치 → 장소
+        TransitSegmentDto seg01 = TransitSegmentDto.builder()
+                .fromName("현재 위치")
+                .fromLat(req.getCurrentLat())
+                .fromLng(req.getCurrentLng())
+                .toName("장소1 · 카페 무지")
+                .toLat(37.5668)   // 더미
+                .toLng(126.9785)  // 더미
+                .distanceMeters(850)
+                .durationSeconds(600)
+                .fare(0)
+                .summary("도보 8분")
+                .steps(List.of(
+                        TransitStepDto.builder()
+                                .mode(TransitStepDto.Mode.WALK)
+                                .instruction("카페 무지까지 850m 도보 이동")
+                                .distanceMeters(850)
+                                .durationSeconds(600)
+                                .polyline(List.of(
+                                        LatLngDto.builder().lat(req.getCurrentLat()).lng(req.getCurrentLng()).build(),
+                                        LatLngDto.builder().lat(37.5668).lng(126.9785).build()
+                                ))
+                                .build()
+                ))
+                .build();
+
+        // 장소1 → 장소2 (버스)
+        TransitSegmentDto seg12 = TransitSegmentDto.builder()
+                .fromName("장소1 · 카페 무지")
+                .fromLat(37.5668)
+                .fromLng(126.9785)
+                .toName("장소2 · 한강공원")
+                .toLat(37.5283)
+                .toLng(126.9326)
+                .distanceMeters(5400)
+                .durationSeconds(1500)
+                .fare(1250)
+                .summary("도보 3분 → 버스 6정거장 → 도보 2분")
+                .steps(List.of(
+                        TransitStepDto.builder()
+                                .mode(TransitStepDto.Mode.WALK)
+                                .instruction("무지앞 정류장까지 200m 이동")
+                                .distanceMeters(200)
+                                .durationSeconds(180)
+                                .polyline(List.of(
+                                        LatLngDto.builder().lat(37.5668).lng(126.9785).build(),
+                                        LatLngDto.builder().lat(37.5665).lng(126.9779).build()
+                                ))
+                                .build(),
+                        TransitStepDto.builder()
+                                .mode(TransitStepDto.Mode.BUS)
+                                .instruction("버스 273 탑승 → 한강공원 입구 하차")
+                                .lineName("273")
+                                .headsign("여의도 방면")
+                                .numStops(6)
+                                .distanceMeters(5000)
+                                .durationSeconds(1200)
+                                .polyline(List.of(
+                                        LatLngDto.builder().lat(37.5665).lng(126.9779).build(),
+                                        LatLngDto.builder().lat(37.5400).lng(126.9600).build(),
+                                        LatLngDto.builder().lat(37.5286).lng(126.9341).build()
+                                ))
+                                .build(),
+                        TransitStepDto.builder()
+                                .mode(TransitStepDto.Mode.WALK)
+                                .instruction("하차 후 200m 이동")
+                                .distanceMeters(200)
+                                .durationSeconds(120)
+                                .polyline(List.of(
+                                        LatLngDto.builder().lat(37.5286).lng(126.9341).build(),
+                                        LatLngDto.builder().lat(37.5283).lng(126.9326).build()
+                                ))
+                                .build()
+                ))
+                .build();
+
+        // 장소2 → 장소3 (지하철)
+        TransitSegmentDto seg23 = TransitSegmentDto.builder()
+                .fromName("장소2 · 한강공원")
+                .fromLat(37.5283)
+                .fromLng(126.9326)
+                .toName("장소3 · 경복궁")
+                .toLat(37.5796)
+                .toLng(126.9770)
+                .distanceMeters(7400)
+                .durationSeconds(2100)
+                .fare(1450)
+                .summary("도보 5분 → 지하철 7정거장 → 도보 4분")
+                .steps(List.of(
+                        TransitStepDto.builder()
+                                .mode(TransitStepDto.Mode.WALK)
+                                .instruction("여의나루역까지 350m 이동")
+                                .distanceMeters(350)
+                                .durationSeconds(300)
+                                .build(),
+                        TransitStepDto.builder()
+                                .mode(TransitStepDto.Mode.SUBWAY)
+                                .instruction("5호선 탑승 후 환승 → 3호선 경복궁역 하차")
+                                .lineName("5호선/3호선")
+                                .headsign("경복궁 방면")
+                                .numStops(7)
+                                .distanceMeters(6800)
+                                .durationSeconds(1560)
+                                .build(),
+                        TransitStepDto.builder()
+                                .mode(TransitStepDto.Mode.WALK)
+                                .instruction("출구에서 경복궁까지 250m 이동")
+                                .distanceMeters(250)
+                                .durationSeconds(240)
+                                .build()
+                ))
+                .build();
+
+        int totalDist = (seg01.getDistanceMeters() + seg12.getDistanceMeters() + seg23.getDistanceMeters());
+        int totalDur  = (seg01.getDurationSeconds() + seg12.getDurationSeconds() + seg23.getDurationSeconds());
+        int totalFare = (seg01.getFare() + seg12.getFare() + seg23.getFare());
+
+        return StartRouteResponseDto.builder()
+                .routeId(routeId)
+                .totalDistanceMeters(totalDist)
+                .totalDurationSeconds(totalDur)
+                .totalFare(totalFare)
+                .currency("KRW")
+                .segments(List.of(seg01, seg12, seg23))
+                .build();
+    }
 
     public CreateItineraryResponseDto createItinerary2(CreateItineraryRequestDto req) {
         if (req == null || req.getPlaces() == null || req.getPlaces().size() < 2)

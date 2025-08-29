@@ -1,11 +1,6 @@
 package com.mey.backend.domain.route.controller;
 
-import com.mey.backend.domain.route.dto.CreateItineraryRequestDto;
-import com.mey.backend.domain.route.dto.CreateItineraryResponseDto;
-import com.mey.backend.domain.route.dto.RouteCreateRequestDto;
-import com.mey.backend.domain.route.dto.RouteCreateResponseDto;
-import com.mey.backend.domain.route.dto.RouteDetailResponseDto;
-import com.mey.backend.domain.route.dto.RouteRecommendListResponseDto;
+import com.mey.backend.domain.route.dto.*;
 import com.mey.backend.domain.route.entity.Theme;
 import com.mey.backend.domain.route.service.RouteService;
 import com.mey.backend.global.payload.CommonResponse;
@@ -37,6 +32,20 @@ public class RouteController {
         RouteCreateResponseDto response = routeService.createRoute(request);
         return CommonResponse.onSuccess(response);
     }
+
+    @Operation(
+            summary = "루트 시작(더미 응답)",
+            description = "현재 위치와 루트 ID를 받아, 현재→1번 장소, i→i+1 구간의 단계별 길찾기 정보를 반환합니다. (현재는 더미 데이터)"
+    )
+    @PostMapping("/{route_id}/start")
+    public CommonResponse<StartRouteResponseDto> startRoute(
+            @PathVariable("route_id") Long routeId,
+            @Validated @RequestBody StartRouteRequestDto request
+    ) {
+        StartRouteResponseDto response = routeService.startRoute(routeId, request);
+        return CommonResponse.onSuccess(response);
+    }
+
 
     @PostMapping("/ai-recommend")
     public CommonResponse<CreateItineraryResponseDto> create(
