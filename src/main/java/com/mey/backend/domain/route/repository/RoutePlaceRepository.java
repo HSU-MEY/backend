@@ -11,6 +11,6 @@ import java.util.List;
 public interface RoutePlaceRepository extends JpaRepository<RoutePlace, Long> {
     
     List<RoutePlace> findByRouteOrderByVisitOrder(Route route);
-    
+    List<RoutePlace> findAllByRoute_RouteIdOrderByVisitOrderAsc(Long routeId);
     List<RoutePlace> findByRouteIdOrderByVisitOrder(Long routeId);
 }

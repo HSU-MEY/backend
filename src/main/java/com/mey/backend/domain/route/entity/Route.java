@@ -42,9 +42,6 @@ public class Route extends BaseTimeEntity {
     private String imageUrl;
 
     @Column(nullable = false)
-    private int cost;
-
-    @Column(nullable = false)
     private int totalDurationMinutes;
 
     @Column(nullable = false)

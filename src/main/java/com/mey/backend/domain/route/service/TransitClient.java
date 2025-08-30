@@ -9,4 +9,10 @@ public interface TransitClient {
             String toName,   double toLat,   double toLng,
             LocalDateTime departureTime
     );
+
+    default TransitSegmentDto route(double fromLat, double fromLng,
+                                    double toLat,   double toLng,
+                                    LocalDateTime departureTime) {
+        return route("", fromLat, fromLng, "", toLat, toLng, departureTime);
+    }
 }

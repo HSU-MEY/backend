@@ -9,6 +9,7 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Deprecated
 public class CreateItineraryResponseDto {
     private Long itineraryId;
     private List<OrderedStopDto> orderedStops;

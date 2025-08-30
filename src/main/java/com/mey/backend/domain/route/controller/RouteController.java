@@ -33,25 +33,24 @@ public class RouteController {
         return CommonResponse.onSuccess(response);
     }
 
-    @Operation(
-            summary = "루트 시작(더미 응답)",
-            description = "현재 위치와 루트 ID를 받아, 현재→1번 장소, i→i+1 구간의 단계별 길찾기 정보를 반환합니다. (현재는 더미 데이터)"
-    )
-    @PostMapping("/{route_id}/start")
-    public CommonResponse<StartRouteResponseDto> startRoute(
-            @PathVariable("route_id") Long routeId,
-            @Validated @RequestBody StartRouteRequestDto request
-    ) {
-        StartRouteResponseDto response = routeService.startRoute(routeId, request);
-        return CommonResponse.onSuccess(response);
-    }
+//    @Operation(
+//            summary = "루트 시작(더미 응답)",
+//            description = "현재 위치와 루트 ID를 받아, 현재→1번 장소, i→i+1 구간의 단계별 길찾기 정보를 반환합니다. (현재는 더미 데이터)"
+//    )
+//    @PostMapping("/{route_id}/start")
+//    public CommonResponse<StartRouteResponseDto> startRoute(
+//            @PathVariable("route_id") Long routeId,
+//            @Validated @RequestBody StartRouteRequestDto request
+//    ) {
+//        StartRouteResponseDto response = routeService.startRoute(routeId, request);
+//        return CommonResponse.onSuccess(response);
+//    }
 
 
     @PostMapping("/ai-recommend")
-    public CommonResponse<CreateItineraryResponseDto> create(
+    public CommonResponse<RouteCreateResponseDto> createByAI(
             @Validated @RequestBody CreateItineraryRequestDto request) {
-
-        CreateItineraryResponseDto response = routeService.createItinerary2(request);
+        RouteCreateResponseDto response = routeService.createRouteByAI(request);
         return CommonResponse.onSuccess(response);
     }
 
@@ -61,7 +60,7 @@ public class RouteController {
             @RequestParam(required = false) String region,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
-        
+
         RouteRecommendListResponseDto response = routeService.getRecommendedRoutes(themes, region, limit, offset);
         return CommonResponse.onSuccess(response);
     }
@@ -71,7 +70,7 @@ public class RouteController {
             @PathVariable Long routeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime startTime) {
-        
+
         RouteDetailResponseDto response = routeService.getRouteDetail(routeId, date, startTime);
         return CommonResponse.onSuccess(response);
     }

@@ -3,6 +3,7 @@ package com.mey.backend.domain.route.entity;
 import com.mey.backend.domain.common.entity.BaseTimeEntity;
 import com.mey.backend.domain.place.entity.Place;
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -43,6 +44,7 @@ public class RoutePlace extends BaseTimeEntity {
     @Column(columnDefinition = "TEXT")
     private String notes;
 
+    @Builder
     public RoutePlace(Route route, Place place, Integer visitOrder, Integer recommendDurationMinutes) {
         this.route = route;
         this.place = place;
