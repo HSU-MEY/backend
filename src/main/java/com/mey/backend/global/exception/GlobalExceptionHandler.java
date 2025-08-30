@@ -12,6 +12,9 @@ import java.util.Optional;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -88,4 +91,17 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return super.handleExceptionInternal(e, body, HttpHeaders.EMPTY,
                 ErrorStatus.INTERNAL_SERVER_ERROR.getHttpStatus(), request);
     }
+
+    // 인증 관련 예외 처리
+    @ExceptionHandler({ BadCredentialsException.class, UsernameNotFoundException.class })
+    public ResponseEntity<Object> handleAuth(AuthenticationException e, WebRequest request) {
+        CommonResponse<Object> body = CommonResponse.onFailure(
+                ErrorStatus.UNAUTHORIZED.getCode(),     // 예: AUTH_401 같은 코드
+                "이메일 또는 비밀번호가 올바르지 않습니다.",
+                null
+        );
+        return super.handleExceptionInternal(e, body, HttpHeaders.EMPTY,
+                ErrorStatus.UNAUTHORIZED.getHttpStatus(), request);
+    }
+
 }
