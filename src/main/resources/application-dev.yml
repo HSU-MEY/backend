@@ -6,8 +6,8 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
   sql:
     init:
-      mode: always
-      data-locations: classpath:sql/data-mysql.sql
+      mode: never
+#      data-locations: classpath:sql/data-mysql.sql
 
   jpa:
     properties:
