@@ -1,6 +1,7 @@
 package com.mey.backend.domain.place.service;
 
 import com.mey.backend.domain.place.dto.PlaceResponseDto;
+import com.mey.backend.domain.place.dto.PlaceSimpleResponseDto;
 import com.mey.backend.domain.place.dto.PlaceThemeResponseDto;
 import com.mey.backend.domain.place.entity.Place;
 import com.mey.backend.domain.place.repository.PlaceRepository;
@@ -30,6 +31,12 @@ public class PlaceService {
         Place place = placeRepository.findById(placeId)
                 .orElseThrow(() -> new PlaceException(ErrorStatus.PLACE_NOT_FOUND));
         return new PlaceResponseDto(place);
+    }
+
+    public PlaceSimpleResponseDto getPlaceByName(String nameKo) {
+        Place place = placeRepository.findByNameKo(nameKo)
+                .orElseThrow(() -> new PlaceException(ErrorStatus.PLACE_NOT_FOUND));
+        return new PlaceSimpleResponseDto(place);
     }
 
     public List<PlaceResponseDto> getPopularPlaces() {

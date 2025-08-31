@@ -1,6 +1,7 @@
 package com.mey.backend.domain.place.controller;
 
 import com.mey.backend.domain.place.dto.PlaceResponseDto;
+import com.mey.backend.domain.place.dto.PlaceSimpleResponseDto;
 import com.mey.backend.domain.place.dto.PlaceThemeResponseDto;
 import com.mey.backend.domain.place.service.PlaceService;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +28,10 @@ public class PlaceController {
         return placeService.getPlaceDetail(placeId);
     }
 
+    @GetMapping("/by-name")
+    public PlaceSimpleResponseDto getPlaceByName(@RequestParam String nameKo) {
+        return placeService.getPlaceByName(nameKo);
+    }
     @GetMapping("/popular")
     public List<PlaceResponseDto> getPopularPlaces() {
         return placeService.getPopularPlaces();

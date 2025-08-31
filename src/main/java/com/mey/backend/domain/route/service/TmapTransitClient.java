@@ -1,7 +1,6 @@
 package com.mey.backend.domain.route.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mey.backend.domain.route.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,18 +38,18 @@ public class TmapTransitClient implements TransitClient {
     @PostConstruct
     void init() {
         this.rest = RestClient.builder()
-                .baseUrl(baseUrl) // https://apis.openapi.sk.com/transit
+                .baseUrl(baseUrl)
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader("appKey", appKey)             // ← 정확한 헤더명
-                .build();                                    // Content-Type은 요청마다 설정
+                .defaultHeader("appKey", appKey)
+                .build();
     }
 
     @Override
     public TransitSegmentDto route(String fromName, double fromLat, double fromLng,
                                    String toName,   double toLat,   double toLng,
-                                   LocalDateTime departureTime) {
+                                   LocalDateTime departureTime)
+    {
 
-        // 바디는 숫자 타입으로
         var body = new java.util.HashMap<String, Object>();
         body.put("startX", fromLng);
         body.put("startY", fromLat);
@@ -62,7 +61,7 @@ public class TmapTransitClient implements TransitClient {
         JsonNode root;
         try {
             root = rest.post()
-                    .uri("/routes?version=1&format=json")   // ← 반드시 경로/쿼리 지정
+                    .uri("/routes?version=1&format=json")
                     .contentType(MediaType.APPLICATION_JSON)
                     .body(body)
                     .retrieve()
@@ -161,7 +160,6 @@ public class TmapTransitClient implements TransitClient {
     }
 
     private List<LatLngDto> parseLinestring(String lines) {
-        // "127.02551,37.637882 127.02552,37.637897 ..." (lon,lat 공백 구분)  [oai_citation:6‡SKopenAPI](https://skopenapi.readme.io/reference/%EB%8C%80%EC%A4%91%EA%B5%90%ED%86%B5-%EC%83%98%ED%94%8C-%EC%98%88%EC%A0%9C)
         List<LatLngDto> list = new ArrayList<>();
         if (lines == null || lines.isBlank()) return list;
         String[] pairs = lines.trim().split("\\s+");
@@ -198,6 +196,88 @@ public class TmapTransitClient implements TransitClient {
             case "FERRY" -> "해운";
             default -> "도보";
         };
+    }
+
+    @Override
+    public TransitMetricsDto metrics(double fromLat, double fromLng,
+                                     double toLat,   double toLng,
+                                     LocalDateTime departureTime) {
+
+        var body = new java.util.HashMap<String, Object>();
+        body.put("startX", fromLng);
+        body.put("startY", fromLat);
+        body.put("endX",   toLng);
+        body.put("endY",   toLat);
+        body.put("count",  count);
+        body.put("lang",   lang);
+
+        JsonNode root;
+        try {
+            root = rest.post()
+                    .uri("/routes?version=1&format=json")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (org.springframework.web.client.RestClientResponseException ex) {
+            log.warn("[TMAP] {} {}: {}", ex.getRawStatusCode(), ex.getStatusText(), ex.getResponseBodyAsString());
+            // 실패 시 도보 폴백 합계만 계산
+            int dist = haversineMeters(fromLat, fromLng, toLat, toLng);
+            return TransitMetricsDto.builder()
+                    .distanceMeters(dist)
+                    .durationSeconds((int)Math.round(dist / 1.2))
+                    .fare(0)
+                    .build();
+        } catch (Exception e) {
+            log.warn("[TMAP] 호출 실패: {}", e.getMessage());
+            int dist = haversineMeters(fromLat, fromLng, toLat, toLng);
+            return TransitMetricsDto.builder()
+                    .distanceMeters(dist)
+                    .durationSeconds((int)Math.round(dist / 1.2))
+                    .fare(0)
+                    .build();
+        }
+
+        try {
+            JsonNode it = root.path("metaData").path("plan").path("itineraries").get(0);
+            if (it == null || it.isMissingNode()) {
+                log.warn("[TMAP] itineraries 비어있음: {}", root);
+                int dist = haversineMeters(fromLat, fromLng, toLat, toLng);
+                return TransitMetricsDto.builder()
+                        .distanceMeters(dist)
+                        .durationSeconds((int)Math.round(dist / 1.2))
+                        .fare(0)
+                        .build();
+            }
+
+            int totalFare = it.path("fare").path("regular").path("totalFare").asInt(0);
+            JsonNode legs = it.path("legs");
+
+            int sumDistance = 0;
+            int sumDuration = 0;
+
+            for (JsonNode leg : legs) {
+                int sectionTimeSec = (int)Math.round(leg.path("sectionTime").asDouble(0));
+                int legDistance    = (int)Math.round(leg.path("distance").asDouble(0));
+                sumDuration += sectionTimeSec;
+                sumDistance += legDistance;
+            }
+
+            return TransitMetricsDto.builder()
+                    .distanceMeters(sumDistance)
+                    .durationSeconds(sumDuration)
+                    .fare(totalFare)
+                    .build();
+
+        } catch (Exception e) {
+            log.warn("[TMAP] 응답 파싱 실패: {}", e.getMessage());
+            int dist = haversineMeters(fromLat, fromLng, toLat, toLng);
+            return TransitMetricsDto.builder()
+                    .distanceMeters(dist)
+                    .durationSeconds((int)Math.round(dist / 1.2))
+                    .fare(0)
+                    .build();
+        }
     }
 
     // API 실패시 하버사인 기반 도보 폴백

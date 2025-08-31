@@ -14,7 +14,6 @@ import com.mey.backend.global.payload.status.ErrorStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.function.Function;
@@ -37,53 +36,62 @@ public class RouteService {
     private final RoutePlaceRepository routePlaceRepository;
     private final RegionRepository regionRepository;
     private final TransitClient transitClient; // 실제 구현: TmapTransitClient 등
-    private final PlaceRepository placeRepository;   // 이미 있다면 사용
+    private final PlaceRepository placeRepository;
     private final SequencePlanner sequencePlanner;   // GptSequencePlanner 구현체 주입
 
     @Transactional
-    public RouteCreateResponseDto createRouteByAI(CreateItineraryRequestDto req) {
-        // 1) 입력 검증
-        if (req.getPlaces() == null || req.getPlaces().size() < 2) {
-            throw new IllegalArgumentException("2개 이상의 장소가 필요합니다.");
+    public RouteCreateResponseDto createRouteByAI(CreateRouteByPlaceIdsRequestDto req) {
+        // 1) 검증
+        if (req.getPlaceIds() == null || req.getPlaceIds().size() < 2) {
+            throw new IllegalArgumentException("2개 이상의 placeId가 필요합니다.");
         }
 
-        // 2) 좌표 → Place 확보 (placeId 있으면 findById, 없으면 INTERNAL 생성)
-        ensureOriginalIndex(req.getPlaces());
-        List<Place> selected = new ArrayList<>();
-        for (CoordinateDto c : req.getPlaces()) {
-            Place p;
-            if (c.getPlaceId() != null) {
-                p = placeRepository.findById(c.getPlaceId())
-                        .orElseThrow(() -> new PlaceException(ErrorStatus.PLACE_NOT_FOUND));
-            } else {
-                p = createInternalPlace(c); // 프론트 name/addressKo 저장, 나머지는 더미
-            }
+        // 2) placeId → Place 조회 (요청 순서 보존)
+        // findAllById는 순서를 보장하지 않으니, map으로 받아서 placeIds 순회
+        Map<Long, Place> found = placeRepository.findAllById(req.getPlaceIds())
+                .stream().collect(Collectors.toMap(Place::getPlaceId, p -> p));
+        List<Place> selected = new ArrayList<>(req.getPlaceIds().size());
+        for (Long id : req.getPlaceIds()) {
+            Place p = found.get(id);
+            if (p == null) throw new PlaceException(ErrorStatus.PLACE_NOT_FOUND);
             selected.add(p);
         }
 
-        // 3) 방문 순서 최적화 (입력 인덱스 기준)
-        List<CoordinateDto> coordsForPlan = req.getPlaces(); // lat/lng + originalIndex 사용
+        // 3) GPT용 좌표 리스트 구성 (입력 인덱스 = originalIndex)
+        List<CoordinateDto> coordsForPlan = new ArrayList<>();
+        for (int i = 0; i < selected.size(); i++) {
+            Place p = selected.get(i);
+            coordsForPlan.add(CoordinateDto.builder()
+                    .lat(p.getLatitude())
+                    .lng(p.getLongitude())
+                    .originalIndex(i)
+                    .placeId(p.getPlaceId())
+                    .build());
+        }
+
+        // 4) 방문 순서 최적화 (GPT)
         SequencePlanner.PlanResult plan;
         try {
             plan = sequencePlanner.plan(coordsForPlan);
         } catch (Exception e) {
-            // 실패 시 입력 순서 그대로
             List<Integer> fallback = IntStream.range(0, coordsForPlan.size()).boxed().toList();
             plan = new SequencePlanner.PlanResult(fallback, 0);
         }
-        List<Integer> orderIdx = plan.order(); // 프론트에 내려줄 값
-        // placeId 순서로도 만들어 두기(옵션)
-        List<Long> placeIds = selected.stream().map(Place::getPlaceId).toList();
-        List<Long> orderedPlaceIds = orderIdx.stream().map(placeIds::get).toList();
+        List<Integer> orderIdx = plan.order(); // 프론트 핵심: 입력 인덱스 기준 순서
 
-        // 4) 합계(총시간/거리/요금) 계산
+        // placeId 기준 순서 리스트도 생성 (옵션)
+        List<Long> orderedPlaceIds = orderIdx.stream()
+                .map(i -> selected.get(i).getPlaceId())
+                .toList();
+
+        // 5) TMAP으로 총 거리/시간/요금 합계
         Totals totals = computeTotals(selected, orderedPlaceIds);
         int totalSec   = totals.totalDurationSec();
         int totalMin   = Math.max(1, totalSec / 60);
         int totalMeter = totals.totalDistanceMeters();
         int totalFare  = totals.totalFare();
 
-        // 5) Route 저장
+        // 6) Route 저장 (새 Place 저장 없음)
         Region routeRegion = chooseRegionByMajority(selected);
         String titleKo = "AI 추천 루트";
         String titleEn = "AI Recommended Route";
@@ -100,27 +108,27 @@ public class RouteService {
                 .descriptionKo(descKo)
                 .descriptionEn(descEn)
                 .imageUrl(imageUrl)
-                .totalDurationMinutes(totalMin)     // m → 분
-                .totalDistance(totalMeter) // DB에는 m로 저장
+                .totalDurationMinutes(totalMin) // 분
+                .totalDistance(totalMeter) // m 저장
                 .totalCost(totalFare)
                 .themes(Collections.emptyList())
                 .routeType(RouteType.AI)
                 .build();
         routeRepository.save(route);
 
-        // 6) RoutePlace 저장 (GPT가 준 순서대로)
-        int order = 1;
+        // 7) RoutePlace 저장 (기존 Place만 연결)
+        int visitOrder = 1;
         for (Integer idx : orderIdx) {
             Place p = selected.get(idx);
             routePlaceRepository.save(RoutePlace.builder()
                     .route(route)
                     .place(p)
-                    .visitOrder(order++)
-                    .recommendDurationMinutes(60) // 기본 체류시간(요구 시 req에서 받도록 확장)
+                    .visitOrder(visitOrder++)
+                    .recommendDurationMinutes(60)
                     .build());
         }
 
-        // 7) 응답: 순서 + 기본 메타
+        // 8) 응답
         return RouteCreateResponseDto.builder()
                 .routeId(route.getId())
                 .titleKo(route.getTitleKo())
@@ -134,61 +142,29 @@ public class RouteService {
                 .themes(route.getThemes())
                 .routeType(route.getRouteType())
                 .regionName(route.getRegion() != null ? route.getRegion().getNameKo() : null)
-                .order(orderIdx)                          // 프론트 핵심: 방문 순서
-                .orderedPlaceIds(orderedPlaceIds)        // (옵션)
+                .order(orderIdx)                   // [2,0,1] 같은 입력 인덱스 순서
+                .orderedPlaceIds(orderedPlaceIds)  // [303,101,202] 같은 실제 placeId 순서
                 .build();
     }
 
-    // 요청 배열에서의 원래 위치 확정
-    // 프론트가 보낸 각 장소(CoordinateDto)에 originalIndex가 비어 있으면, 서버가 0..N-1로 채워 넣음
-    private void ensureOriginalIndex(List<CoordinateDto> coords) {
-        for (int i = 0; i < coords.size(); i++) {
-            if (coords.get(i).getOriginalIndex() == null) coords.get(i).setOriginalIndex(i);
-        }
-    }
-
-    // INTERNAL Place 생성: 받은 name/addressKo는 저장, 나머지는 더미로 채움
-    private Place createInternalPlace(CoordinateDto c) {
-        String nameKo = nonBlank(c.getName()) ? c.getName() : "선택한 위치";
-        String addrKo = nonBlank(c.getAddressKo()) ? c.getAddressKo() : "";
-
-        return placeRepository.save(Place.builder()
-                .nameKo(nameKo)
-                .nameEn(nameKo)                 // 임시: 한/영 동일
-                .descriptionKo("정보 준비 중")   // 더미
-                .descriptionEn("TBD")
-                .longitude(c.getLng())
-                .latitude(c.getLat())
-                .imageUrl("/static/images/place-default.png") // 더미 이미지
-                .address(addrKo)
-                .contactInfo("")                // 더미
-                .websiteUrl("")                 // 더미
-                .kakaoPlaceId("")               // 더미
-                .tourApiPlaceId("")             // 더미
-                .openingHours(Map.of())         // 빈 JSON (nullable=false 대응)
-                .themes(List.of())              // 빈 JSON
-                .tags("")                       // 더미
-                .costInfo("")                   // 더미
-                .build());
-    }
-
-    private boolean nonBlank(String s) { return s != null && !s.isBlank(); }
-
-    // 기존 computeTotals는 List<Long> ordered를 받으니 placeId 순서로 호출
     private Totals computeTotals(List<Place> selected, List<Long> orderedPlaceIds) {
         Map<Long, Place> byId = selected.stream()
                 .collect(Collectors.toMap(Place::getPlaceId, p -> p));
+
         int sec = 0, dist = 0, fare = 0;
+
         for (int i = 0; i < orderedPlaceIds.size() - 1; i++) {
             Place from = byId.get(orderedPlaceIds.get(i));
             Place to   = byId.get(orderedPlaceIds.get(i + 1));
-            TransitSegmentDto r = transitClient.route(
-                    from.getLatitude().doubleValue(), from.getLongitude().doubleValue(),
-                    to.getLatitude().doubleValue(),   to.getLongitude().doubleValue(),
-                    null);
-            sec  += r.getDurationSeconds();
-            dist += r.getDistanceMeters();
-            fare += r.getFare();
+
+            TransitMetricsDto m = transitClient.metrics(
+                    from.getLatitude(), from.getLongitude(),
+                    to.getLatitude(),   to.getLongitude(),
+                    null
+            );
+            sec  += m.getDurationSeconds();
+            dist += m.getDistanceMeters();
+            fare += m.getFare();
         }
         return new Totals(sec, dist, fare);
     }
@@ -413,7 +389,7 @@ public class RouteService {
 
 
     private Region chooseRegionByMajority(List<Place> places) {
-        // place.getRegion()이 null일 수 있으니 방어
+
         return places.stream()
                 .map(Place::getRegion)
                 .filter(Objects::nonNull)

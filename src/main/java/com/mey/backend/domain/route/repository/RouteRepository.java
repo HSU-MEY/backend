@@ -1,13 +1,11 @@
 package com.mey.backend.domain.route.repository;
 
 import com.mey.backend.domain.route.entity.Route;
-import com.mey.backend.domain.route.entity.Theme;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Set;
 
 public interface RouteRepository extends JpaRepository<Route, Long> {
     
@@ -28,6 +26,6 @@ public interface RouteRepository extends JpaRepository<Route, Long> {
     List<Route> findByThemesContainingAny(@Param("themes") String themes);
     
     // 인기도순 정렬 (비용 기준으로 대체)
-    @Query("SELECT r FROM Route r ORDER BY r.cost ASC")
+    @Query("SELECT r FROM Route r ORDER BY r.totalCost ASC")
     List<Route> findAllOrderByPopularity();
 }
