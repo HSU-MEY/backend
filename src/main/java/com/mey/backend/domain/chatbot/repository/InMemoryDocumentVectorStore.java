@@ -2,11 +2,9 @@ package com.mey.backend.domain.chatbot.repository;
 
 import com.mey.backend.domain.chatbot.dto.DocumentSearchResult;
 import com.mey.backend.domain.chatbot.exception.DocumentProcessingException;
-import com.mey.backend.domain.chatbot.exception.FileProcessingException;
 import com.mey.backend.domain.chatbot.exception.SimilarityProcessingException;
 import com.mey.backend.domain.chatbot.service.DocumentProcessingService;
 import com.mey.backend.domain.chatbot.service.EmbeddingService;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.transformer.splitter.TokenTextSplitter;
@@ -104,10 +102,10 @@ public class InMemoryDocumentVectorStore {
             addDocument(id, fileText, metadata);
         } catch (IOException e) {
             log.error("파일 읽기 실패 - ID: {}, 파일: {}", id, file.getName(), e);
-            throw new FileProcessingException();
+            throw new DocumentProcessingException();
         } catch (Exception e) {
             log.error("파일 처리 실패 - ID: {}, 파일: {}", id, file.getName(), e);
-            throw new FileProcessingException();
+            throw new DocumentProcessingException();
         }
     }
 

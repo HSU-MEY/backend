@@ -4,6 +4,7 @@ import com.mey.backend.domain.chatbot.dto.DocumentSearchResult;
 import com.mey.backend.domain.chatbot.exception.DocumentProcessingException;
 import com.mey.backend.domain.chatbot.repository.InMemoryDocumentVectorStore;
 import java.io.File;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,6 +12,14 @@ import java.util.UUID;
 import java.util.stream.IntStream;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.ai.chat.messages.Message;
+import org.springframework.ai.chat.messages.SystemMessage;
+import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatResponse;
+import org.springframework.ai.chat.prompt.ChatOptions;
+import org.springframework.ai.chat.prompt.Prompt;
+import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -18,7 +27,7 @@ import org.springframework.stereotype.Service;
 @Slf4j
 public class RagService {
     private final InMemoryDocumentVectorStore vectorStore;
-    private final ChatService chatService;
+    private final OpenAiApi openAiApi;
 
     /**
      * json 파일을 업로드하여 벡터 스토어에 추가합니다.
@@ -60,6 +69,61 @@ public class RagService {
     }
 
     /**
+     * 한류 루트 추천을 위한 답변을 생성합니다 (출처 정보 없음).
+     *
+     * @param question 사용자 질문
+     * @param relevantDocs 이미 검색된 관련 문서
+     * @return 출처 정보가 제거된 루트 추천 응답
+     */
+    public String generateRouteRecommendationAnswer(String question, List<DocumentSearchResult> relevantDocs) {
+        log.debug("루트 추천 응답 생성 시작: '{}'", question);
+
+        // 관련 문서 검색 또는 사용
+        if (relevantDocs.isEmpty()) {
+            log.info("관련 정보를 찾을 수 없음: '{}'", question);
+            return "죄송합니다. 요청하신 조건에 맞는 루트 정보를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?";
+        }
+
+        // 관련 문서의 내용을 컨텍스트로 결합 (번호 없이)
+        String context = relevantDocs.stream()
+                .map(DocumentSearchResult::getContent)
+                .collect(java.util.stream.Collectors.joining("\n\n"));
+        
+        log.debug("컨텍스트 크기: {} 문자", context.length());
+
+        // 루트 추천에 특화된 시스템 프롬프트 생성
+        String systemPromptText = String.format("""
+            당신은 친근하고 전문적인 한류 여행 가이드입니다. 
+            사용자의 질문에 대해 주어진 루트 정보를 바탕으로 자연스럽고 매력적인 추천을 해주세요.
+            
+            다음 원칙을 따라주세요:
+            1. 정보 출처나 참고 번호는 절대 언급하지 마세요
+            2. 자연스럽고 친근한 톤으로 응답하세요
+            3. 루트의 특징과 매력을 강조하세요
+            4. 구체적인 추천 이유를 포함하세요
+            5. 2-3문장으로 간결하게 작성하세요
+            
+            루트 정보:
+            %s
+            """, context);
+
+        // LLM을 통한 응답 생성
+        try {
+            ChatResponse response = callOpenAi(question, systemPromptText);
+            log.debug("AI 응답 생성: {}", response);
+            String aiAnswer = (response != null && response.getResult() != null &&
+                    response.getResult().getOutput() != null)
+                    ? response.getResult().getOutput().getText()
+                    : "응답을 생성할 수 없습니다.";
+
+            return aiAnswer;
+        } catch (Exception e) {
+            log.error("AI 모델 호출 중 오류 발생: {}", e.getMessage(), e);
+            return "죄송합니다. 현재 추천 시스템에 문제가 있습니다. 잠시 후 다시 시도해주세요.";
+        }
+    }
+
+    /**
      * 질문에 대한 답변을 생성하며, 참고한 정보 출처도 함께 제공합니다.
      *
      * @param question 사용자 질문
@@ -97,7 +161,7 @@ public class RagService {
 
         // LLM을 통한 응답 생성
         try {
-            var response = chatService.openAiChat(question, systemPromptText);
+            ChatResponse response = callOpenAi(question, systemPromptText);
             log.debug("AI 응답 생성: {}", response);
             String aiAnswer = (response != null && response.getResult() != null &&
                     response.getResult().getOutput() != null)
@@ -125,6 +189,28 @@ public class RagService {
 
             return fallbackResponse.toString();
         }
+    }
+
+    private ChatResponse callOpenAi(String userInput, String systemMessage) {
+        List<Message> messages = Arrays.asList(
+                new SystemMessage(systemMessage),
+                new UserMessage(userInput)
+        );
+
+        ChatOptions chatOptions = ChatOptions.builder()
+                .model("gpt-4o-mini")
+                .build();
+
+        Prompt prompt = Prompt.builder()
+                .messages(messages)
+                .chatOptions(chatOptions)
+                .build();
+
+        OpenAiChatModel chatModel = OpenAiChatModel.builder()
+                .openAiApi(openAiApi)
+                .build();
+
+        return chatModel.call(prompt);
     }
 
 }
