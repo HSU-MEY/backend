@@ -8,6 +8,9 @@ jobs:
   build:
     name: CI
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      TMAP_APP_KEY:   ${{ secrets.TMAP_APP_KEY }}
 
     steps:
       - uses: actions/checkout@v2
