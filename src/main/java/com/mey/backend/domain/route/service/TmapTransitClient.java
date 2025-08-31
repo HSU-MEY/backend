@@ -21,6 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 public class TmapTransitClient implements TransitClient {
 
+
     @Value("${tmap.transit.base-url}")
     private String baseUrl;
 
@@ -33,20 +34,15 @@ public class TmapTransitClient implements TransitClient {
     @Value("${tmap.transit.count:1}")
     private int count;
 
-    @Value("${tmap.transit.format:json}")
-    private String format;
-
-    private final ObjectMapper om = new ObjectMapper();
     private RestClient rest;
 
     @PostConstruct
     void init() {
         this.rest = RestClient.builder()
-                .baseUrl(baseUrl) // POST 전체 URL
+                .baseUrl(baseUrl) // https://apis.openapi.sk.com/transit
                 .defaultHeader(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE)
-                .defaultHeader("appKey", appKey) // Tmap 요구 헤더
-                .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
-                .build();
+                .defaultHeader("appKey", appKey)             // ← 정확한 헤더명
+                .build();                                    // Content-Type은 요청마다 설정
     }
 
     @Override
@@ -54,38 +50,40 @@ public class TmapTransitClient implements TransitClient {
                                    String toName,   double toLat,   double toLng,
                                    LocalDateTime departureTime) {
 
-        // Tmap은 startX=경도, startY=위도 (WGS84)
-        var body = """
-        {
-          "startX": "%f",
-          "startY": "%f",
-          "endX": "%f",
-          "endY": "%f",
-          "count": %d,
-          "lang": %d,
-          "format": "%s"
-        }
-        """.formatted(fromLng, fromLat, toLng, toLat, count, lang, format);
+        // 바디는 숫자 타입으로
+        var body = new java.util.HashMap<String, Object>();
+        body.put("startX", fromLng);
+        body.put("startY", fromLat);
+        body.put("endX",   toLng);
+        body.put("endY",   toLat);
+        body.put("count",  count);
+        body.put("lang",   lang);
 
         JsonNode root;
         try {
-            root = rest.post().body(body).retrieve().body(JsonNode.class);
+            root = rest.post()
+                    .uri("/routes?version=1&format=json")   // ← 반드시 경로/쿼리 지정
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(JsonNode.class);
+        } catch (org.springframework.web.client.RestClientResponseException ex) {
+            log.warn("[TMAP] {} {}: {}", ex.getRawStatusCode(), ex.getStatusText(),
+                    ex.getResponseBodyAsString());
+            return walkFallback(fromName, fromLat, fromLng, toName, toLat, toLng);
         } catch (Exception e) {
             log.warn("[TMAP] 호출 실패: {}", e.getMessage());
-            // 실패 시 도보 더미 한 구간으로 폴백
             return walkFallback(fromName, fromLat, fromLng, toName, toLat, toLng);
         }
 
         try {
-            // metaData.plan.itineraries[0]
             JsonNode it = root.path("metaData").path("plan").path("itineraries").get(0);
             if (it == null || it.isMissingNode()) {
-                log.warn("[TMAP] itineraries 비어있음: {}", root.toString());
+                log.warn("[TMAP] itineraries 비어있음: {}", root);
                 return walkFallback(fromName, fromLat, fromLng, toName, toLat, toLng);
             }
 
             int totalFare = it.path("fare").path("regular").path("totalFare").asInt(0);
-            // legs 배열을 하나의 Segment로 요약 (현재 API 응답은 A→B 전체 여정을 legs로 쪼갬)
             JsonNode legs = it.path("legs");
 
             int sumDistance = 0;
@@ -95,8 +93,8 @@ public class TmapTransitClient implements TransitClient {
 
             for (JsonNode leg : legs) {
                 String mode = leg.path("mode").asText("WALK");
-                int sectionTimeSec = (int) Math.round(leg.path("sectionTime").asDouble(0));
-                int legDistance = (int) Math.round(leg.path("distance").asDouble(0));
+                int sectionTimeSec = (int)Math.round(leg.path("sectionTime").asDouble(0)); // TMAP 응답은 초 단위
+                int legDistance    = (int)Math.round(leg.path("distance").asDouble(0));
 
                 sumDuration += sectionTimeSec;
                 sumDistance += legDistance;
@@ -105,7 +103,6 @@ public class TmapTransitClient implements TransitClient {
                         .distanceMeters(legDistance)
                         .durationSeconds(sectionTimeSec);
 
-                // 기본 안내문
                 String instruction = switch (mode) {
                     case "BUS" -> "버스 이동";
                     case "SUBWAY" -> "지하철 이동";
@@ -116,47 +113,33 @@ public class TmapTransitClient implements TransitClient {
                     default -> "도보 이동";
                 };
 
-                // 노선명/정류장 수/라인
-                String lineName = leg.path("route").asText(null); // 예: "지선:1128"
-                Integer numStops = null;
-                if (leg.has("passStopList") && leg.path("passStopList").has("stations")) {
-                    numStops = leg.path("passStopList").path("stations").size();
-                }
+                String lineName = leg.path("route").asText(null);
+                Integer numStops = leg.path("passStopList").path("stations").isMissingNode()
+                        ? null : leg.path("passStopList").path("stations").size();
 
-                // 폴리라인: 도보는 steps[*].linestring, 대중교통은 passShape.linestring
                 List<LatLngDto> polyline = new ArrayList<>();
-                if ("WALK".equals(mode)) {
-                    if (leg.has("steps")) {
-                        for (JsonNode s : leg.path("steps")) {
-                            String lines = s.path("linestring").asText("");
-                            polyline.addAll(parseLinestring(lines)); // lon,lat 공백구분
-                        }
+                if ("WALK".equals(mode) && leg.has("steps")) {
+                    for (JsonNode s : leg.path("steps")) {
+                        polyline.addAll(parseLinestring(s.path("linestring").asText("")));
                     }
                 } else {
-                    String lines = leg.path("passShape").path("linestring").asText("");
-                    polyline.addAll(parseLinestring(lines));
+                    polyline.addAll(parseLinestring(leg.path("passShape").path("linestring").asText("")));
                 }
 
-                // 시작/끝 이름(있으면)
                 String startName = leg.path("start").path("name").asText(null);
                 String endName   = leg.path("end").path("name").asText(null);
-                if (lineName != null && !lineName.isBlank()) {
-                    instruction = instruction + " (" + lineName + ")";
-                }
-                if (startName != null && endName != null) {
-                    instruction = instruction + " · " + startName + " → " + endName;
-                }
+                if (lineName != null && !lineName.isBlank()) instruction += " (" + lineName + ")";
+                if (startName != null && endName != null)    instruction += " · " + startName + " → " + endName;
 
                 step.mode(mapMode(mode))
                         .instruction(instruction)
                         .lineName(lineName)
-                        .headsign(null) // Tmap 응답에 headsign 유사 필드가 별도 노출되지 않음
+                        .headsign(null)
                         .numStops(numStops)
                         .polyline(polyline);
 
                 steps.add(step.build());
 
-                // 요약문 구성
                 if (summary.length() > 0) summary.append(" → ");
                 summary.append(modeToKorean(mode));
             }

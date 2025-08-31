@@ -4,7 +4,6 @@ import com.mey.backend.domain.place.entity.Place;
 import com.mey.backend.domain.place.repository.PlaceRepository;
 import com.mey.backend.domain.route.dto.*;
 import com.mey.backend.domain.route.entity.*;
-import com.mey.backend.domain.route.repository.ItineraryRepository;
 import com.mey.backend.domain.route.repository.RoutePlaceRepository;
 import com.mey.backend.domain.route.repository.RouteRepository;
 import com.mey.backend.domain.region.entity.Region;
@@ -24,6 +23,7 @@ import java.util.stream.IntStream;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -36,95 +36,63 @@ public class RouteService {
     private final RouteRepository routeRepository;
     private final RoutePlaceRepository routePlaceRepository;
     private final RegionRepository regionRepository;
-    private final SequencePlanner planner; // GptSequencePlanner 등 @Component 구현체가 주입됨
-    private final ItineraryRepository itineraryRepository; // JPA 리포지토리
     private final TransitClient transitClient; // 실제 구현: TmapTransitClient 등
     private final PlaceRepository placeRepository;   // 이미 있다면 사용
     private final SequencePlanner sequencePlanner;   // GptSequencePlanner 구현체 주입
 
-
+    @Transactional
     public RouteCreateResponseDto createRouteByAI(CreateItineraryRequestDto req) {
         // 1) 입력 검증
         if (req.getPlaces() == null || req.getPlaces().size() < 2) {
             throw new IllegalArgumentException("2개 이상의 장소가 필요합니다.");
         }
 
-        // 2) 좌표 → Place 매핑 (placeId가 이미 있다면 우선 사용)
-        List<Place> selected = req.getPlaces().stream().map(c -> {
+        // 2) 좌표 → Place 확보 (placeId 있으면 findById, 없으면 INTERNAL 생성)
+        ensureOriginalIndex(req.getPlaces());
+        List<Place> selected = new ArrayList<>();
+        for (CoordinateDto c : req.getPlaces()) {
+            Place p;
             if (c.getPlaceId() != null) {
-                return placeRepository.findById(c.getPlaceId())
+                p = placeRepository.findById(c.getPlaceId())
                         .orElseThrow(() -> new PlaceException(ErrorStatus.PLACE_NOT_FOUND));
+            } else {
+                p = createInternalPlace(c); // 프론트 name/addressKo 저장, 나머지는 더미
             }
-            return placeRepository.findNearest(c.getLat(), c.getLng())
-                    .orElseThrow(() -> new PlaceException(ErrorStatus.PLACE_NOT_FOUND));
-        }).toList();
-
-        // 3) 방문 순서 최적화
-        List<Long> placeIds = selected.stream().map(Place::getPlaceId).toList();
-
-        // plan()에 넣을 좌표(입력 인덱스와 1:1 대응)
-        List<CoordinateDto> coordsForPlan = new ArrayList<>();
-        for (int i = 0; i < selected.size(); i++) {
-            Place p = selected.get(i);
-            coordsForPlan.add(CoordinateDto.builder()
-                    .lat(p.getLatitude().doubleValue())
-                    .lng(p.getLongitude().doubleValue())
-                    .originalIndex(i)
-                    .build());
+            selected.add(p);
         }
 
-        List<Long> ordered;
+        // 3) 방문 순서 최적화 (입력 인덱스 기준)
+        List<CoordinateDto> coordsForPlan = req.getPlaces(); // lat/lng + originalIndex 사용
+        SequencePlanner.PlanResult plan;
         try {
-            // PlanResult 받기
-            SequencePlanner.PlanResult plan = sequencePlanner.plan(coordsForPlan);
-
-            // PlanResult.order() -> 입력 인덱스 → placeId로 매핑
-            List<Integer> orderIdx = plan.order();
-            // 방어 로직(인덱스 범위 체크)
-            for (Integer idx : orderIdx) {
-                if (idx == null || idx < 0 || idx >= placeIds.size()) {
-                    throw new IllegalStateException("Planner가 잘못된 인덱스를 반환했습니다: " + idx);
-                }
-            }
-            ordered = orderIdx.stream().map(placeIds::get).toList();
-
+            plan = sequencePlanner.plan(coordsForPlan);
         } catch (Exception e) {
-            // 실패 시 휴리스틱 폴백
-            ordered = fallbackNearestNeighbor(placeIds);
+            // 실패 시 입력 순서 그대로
+            List<Integer> fallback = IntStream.range(0, coordsForPlan.size()).boxed().toList();
+            plan = new SequencePlanner.PlanResult(fallback, 0);
         }
+        List<Integer> orderIdx = plan.order(); // 프론트에 내려줄 값
+        // placeId 순서로도 만들어 두기(옵션)
+        List<Long> placeIds = selected.stream().map(Place::getPlaceId).toList();
+        List<Long> orderedPlaceIds = orderIdx.stream().map(placeIds::get).toList();
 
-        // 4) 전체 합계(총시간/총거리/총요금) 계산을 위해 모든쌍 또는 인접쌍 요약 호출
-        Totals totals = computeTotals(selected, ordered);
-
-        // 5) Route 저장 (RouteType.AI)
-        // 합계 계산 결과 (이미 가지고 있는 totals)
-        int totalSec = totals.totalDurationSec();
-        int totalMin = Math.max(1, totalSec / 60);
+        // 4) 합계(총시간/거리/요금) 계산
+        Totals totals = computeTotals(selected, orderedPlaceIds);
+        int totalSec   = totals.totalDurationSec();
+        int totalMin   = Math.max(1, totalSec / 60);
         int totalMeter = totals.totalDistanceMeters();
-        int totalFare = totals.totalFare();
+        int totalFare  = totals.totalFare();
 
-        // 지역은 선택된 place들의 region 중 '가장 많이 등장하는 region'으로 설정 (없으면 null 허용)
-        Region routeRegion = chooseRegionByMajority(selected); // 아래 helper 참고
-
-        // 타이틀/설명 기본값
+        // 5) Route 저장
+        Region routeRegion = chooseRegionByMajority(selected);
         String titleKo = "AI 추천 루트";
         String titleEn = "AI Recommended Route";
-
-        String descKo = String.format("총 %d개 장소, 약 %d분, %,dm 이동, 예상 교통비 %,d원",
+        String descKo  = String.format("총 %d개 장소, 약 %d분, %,dm 이동, 예상 교통비 %,d원",
                 selected.size(), totalMin, totalMeter, totalFare);
-        String descEn = String.format("Total %d places, ~%d min, %,d m travel, est. fare %,d KRW",
+        String descEn  = String.format("Total %d places, ~%d min, %,d m travel, est. fare %,d KRW",
                 selected.size(), totalMin, totalMeter, totalFare);
+        String imageUrl = resolveRouteImage(selected);
 
-        // 대표 이미지: 1번 장소 이미지가 있으면 사용, 없으면 기본 이미지로
-        String imageUrl = resolveRouteImage(selected); // 아래 helper 참고
-
-        // themes: JSON 필수 → 빈 배열이라도 넣기
-        List<Theme> themes = Collections.emptyList();
-
-        // 교통비 총합 등 실제 합계
-        double totalCostValue = (double) totalFare;
-
-        // 최종 빌드
         Route route = Route.builder()
                 .region(routeRegion)
                 .titleKo(titleKo)
@@ -132,29 +100,27 @@ public class RouteService {
                 .descriptionKo(descKo)
                 .descriptionEn(descEn)
                 .imageUrl(imageUrl)
-                .totalDurationMinutes(totalMin)          // int, not null
-                .totalDistance((double) totalMeter)      // double, not null (미터 단위로 저장)
-                .totalCost(totalCostValue)               // double, not null
-                .themes(themes)                          // JSON not null
-                .routeType(RouteType.AI)                 // enum, not null
+                .totalDurationMinutes(totalMin)     // m → 분
+                .totalDistance(totalMeter) // DB에는 m로 저장
+                .totalCost(totalFare)
+                .themes(Collections.emptyList())
+                .routeType(RouteType.AI)
                 .build();
-
         routeRepository.save(route);
 
-        // 6) RoutePlace 저장
-        Map<Long, Place> byId = selected.stream()
-                .collect(Collectors.toMap(Place::getPlaceId, p -> p));
+        // 6) RoutePlace 저장 (GPT가 준 순서대로)
         int order = 1;
-        for (Long pid : ordered) {
+        for (Integer idx : orderIdx) {
+            Place p = selected.get(idx);
             routePlaceRepository.save(RoutePlace.builder()
                     .route(route)
-                    .place(byId.get(pid))
+                    .place(p)
                     .visitOrder(order++)
-                    .recommendDurationMinutes(60)
+                    .recommendDurationMinutes(60) // 기본 체류시간(요구 시 req에서 받도록 확장)
                     .build());
         }
 
-        // 7) 응답 DTO로 반환
+        // 7) 응답: 순서 + 기본 메타
         return RouteCreateResponseDto.builder()
                 .routeId(route.getId())
                 .titleKo(route.getTitleKo())
@@ -163,314 +129,71 @@ public class RouteService {
                 .descriptionEn(route.getDescriptionEn())
                 .imageUrl(route.getImageUrl())
                 .totalDurationMinutes(route.getTotalDurationMinutes())
-                .totalDistance(route.getTotalDistance() / 1000.0) // km
+                .totalDistance(route.getTotalDistance() / 1000.0) // km로 내려줌
                 .totalCost(route.getTotalCost())
                 .themes(route.getThemes())
                 .routeType(route.getRouteType())
                 .regionName(route.getRegion() != null ? route.getRegion().getNameKo() : null)
+                .order(orderIdx)                          // 프론트 핵심: 방문 순서
+                .orderedPlaceIds(orderedPlaceIds)        // (옵션)
                 .build();
     }
 
-//    @Transactional(readOnly = true)
-//    public StartRouteResponseDto startRoute(Long routeId, StartRouteRequestDto req) {
-//        Route route = routeRepository.findById(routeId)
-//                .orElseThrow(() -> new RouteException(ErrorStatus.ROUTE_NOT_FOUND));
-//
-//        List<RoutePlace> rps = routePlaceRepository
-//                .findAllByRoute_RouteIdOrderByVisitOrderAsc(routeId);
-//        if (rps.isEmpty()) throw new RouteException(ErrorStatus.ROUTE_PLACE_EMPTY);
-//
-//        List<TransitSegmentDto> segments = new ArrayList<>();
-//        int totalSec = 0, totalDist = 0, totalFare = 0;
-//
-//        // CURRENT → #1
-//        Place first = rps.get(0).getPlace();
-//        var s0 = transitClient.route(
-//                req.getCurrentLat(), req.getCurrentLng(),
-//                first.getLatitude().doubleValue(), first.getLongitude().doubleValue(),
-//                req.getDepartureTime());
-//        segments.add(TransitSegmentDto.builder()
-//                .fromName("CURRENT").fromLat(req.getCurrentLat()).fromLng(req.getCurrentLng())
-//                .toName(first.getNameKo()).toLat(first.getLatitude().doubleValue()).toLng(first.getLongitude().doubleValue())
-//                .summary(s0.summary()).distanceMeters(s0.distanceMeters()).durationSeconds(s0.durationSeconds()).fare(s0.fare())
-//                .steps(s0.steps())   // TransitStepDto 리스트
-//                .build());
-//        totalSec += s0.durationSeconds();
-//        totalDist += s0.distanceMeters();
-//        totalFare += s0.fare();
-//
-//        // #i → #i+1
-//        for (int i = 0; i < rps.size() - 1; i++) {
-//            Place from = rps.get(i).getPlace();
-//            Place to = rps.get(i + 1).getPlace();
-//            var s = transitClient.route(
-//                    from.getLatitude().doubleValue(), from.getLongitude().doubleValue(),
-//                    to.getLatitude().doubleValue(), to.getLongitude().doubleValue(),
-//                    null);
-//            segments.add(TransitSegmentDto.builder()
-//                    .fromName(from.getNameKo()).fromLat(from.getLatitude().doubleValue()).fromLng(from.getLongitude().doubleValue())
-//                    .toName(to.getNameKo()).toLat(to.getLatitude().doubleValue()).toLng(to.getLongitude().doubleValue())
-//                    .summary(s.summary()).distanceMeters(s.distanceMeters()).durationSeconds(s.durationSeconds()).fare(s.fare())
-//                    .steps(s.steps())
-//                    .build());
-//            totalSec += s.durationSeconds();
-//            totalDist += s.distanceMeters();
-//            totalFare += s.fare();
-//        }
-//
-//        return StartRouteResponseDto.builder()
-//                .routeId(routeId)
-//                .totalDurationSeconds(totalSec)
-//                .totalDistanceMeters(totalDist)
-//                .totalFare(totalFare)
-//                .currency("KRW")
-//                .segments(segments)
-//                .build();
-//    }
-
-    private List<Long> fallbackNearestNeighbor(List<Long> ids) {
-        if (ids.size() <= 2) return ids;
-        List<Long> tour = new ArrayList<>();
-        Set<Long> remain = new HashSet<>(ids);
-        Long cur = ids.get(0);
-        tour.add(cur);
-        remain.remove(cur);
-        while (!remain.isEmpty()) {
-            Long best = null;
-            int bestSec = Integer.MAX_VALUE;
-            for (Long p : remain) {
-                int sec = approxDuration(cur, p); // 간단 근사 (직선거리 비례 등)
-                if (sec < bestSec) {
-                    bestSec = sec;
-                    best = p;
-                }
-            }
-            tour.add(best);
-            remain.remove(best);
-            cur = best;
+    // 요청 배열에서의 원래 위치 확정
+    // 프론트가 보낸 각 장소(CoordinateDto)에 originalIndex가 비어 있으면, 서버가 0..N-1로 채워 넣음
+    private void ensureOriginalIndex(List<CoordinateDto> coords) {
+        for (int i = 0; i < coords.size(); i++) {
+            if (coords.get(i).getOriginalIndex() == null) coords.get(i).setOriginalIndex(i);
         }
-        return tour;
     }
 
-    private int approxDuration(Long a, Long b) {
-        // 아주 단순 근사(직선거리/보정). 정확도 필요하면 transitClient를 한 번 호출.
-        return 900; // 15분 가정
+    // INTERNAL Place 생성: 받은 name/addressKo는 저장, 나머지는 더미로 채움
+    private Place createInternalPlace(CoordinateDto c) {
+        String nameKo = nonBlank(c.getName()) ? c.getName() : "선택한 위치";
+        String addrKo = nonBlank(c.getAddressKo()) ? c.getAddressKo() : "";
+
+        return placeRepository.save(Place.builder()
+                .nameKo(nameKo)
+                .nameEn(nameKo)                 // 임시: 한/영 동일
+                .descriptionKo("정보 준비 중")   // 더미
+                .descriptionEn("TBD")
+                .longitude(c.getLng())
+                .latitude(c.getLat())
+                .imageUrl("/static/images/place-default.png") // 더미 이미지
+                .address(addrKo)
+                .contactInfo("")                // 더미
+                .websiteUrl("")                 // 더미
+                .kakaoPlaceId("")               // 더미
+                .tourApiPlaceId("")             // 더미
+                .openingHours(Map.of())         // 빈 JSON (nullable=false 대응)
+                .themes(List.of())              // 빈 JSON
+                .tags("")                       // 더미
+                .costInfo("")                   // 더미
+                .build());
     }
 
-    private record Totals(int totalDurationSec, int totalDistanceMeters, int totalFare) {
-    }
+    private boolean nonBlank(String s) { return s != null && !s.isBlank(); }
 
-    private Totals computeTotals(List<Place> selected, List<Long> ordered) {
+    // 기존 computeTotals는 List<Long> ordered를 받으니 placeId 순서로 호출
+    private Totals computeTotals(List<Place> selected, List<Long> orderedPlaceIds) {
         Map<Long, Place> byId = selected.stream()
                 .collect(Collectors.toMap(Place::getPlaceId, p -> p));
         int sec = 0, dist = 0, fare = 0;
-        for (int i = 0; i < ordered.size() - 1; i++) {
-            Place from = byId.get(ordered.get(i));
-            Place to = byId.get(ordered.get(i + 1));
+        for (int i = 0; i < orderedPlaceIds.size() - 1; i++) {
+            Place from = byId.get(orderedPlaceIds.get(i));
+            Place to   = byId.get(orderedPlaceIds.get(i + 1));
             TransitSegmentDto r = transitClient.route(
                     from.getLatitude().doubleValue(), from.getLongitude().doubleValue(),
-                    to.getLatitude().doubleValue(), to.getLongitude().doubleValue(),
+                    to.getLatitude().doubleValue(),   to.getLongitude().doubleValue(),
                     null);
-
-            sec += r.getDurationSeconds();
+            sec  += r.getDurationSeconds();
             dist += r.getDistanceMeters();
             fare += r.getFare();
         }
         return new Totals(sec, dist, fare);
     }
 
-    public StartRouteResponseDto startRoute2(Long routeId, StartRouteRequestDto req) {
-
-        // TODO 실제 구현:
-        // 1) routeId로 DB에서 순서가 정해진 장소 목록(예: itinerary stops)을 조회
-        // 2) 현재 위치 → 1번 장소, i → i+1 각 구간에 대해 외부 길찾기 API 호출
-        // 3) 외부 API 응답을 TransitSegmentDto/TransitStepDto로 매핑
-
-        // 지금은 더미 데이터 반환:
-        // 가정: 해당 루트는 총 3개 장소로 구성
-        var now = (req.getDepartureTime() != null) ? req.getDepartureTime() : LocalDateTime.now();
-
-        // 현재 위치 → 장소
-        TransitSegmentDto seg01 = TransitSegmentDto.builder()
-                .fromName("현재 위치")
-                .fromLat(req.getCurrentLat())
-                .fromLng(req.getCurrentLng())
-                .toName("장소1 · 카페 무지")
-                .toLat(37.5668)   // 더미
-                .toLng(126.9785)  // 더미
-                .distanceMeters(850)
-                .durationSeconds(600)
-                .fare(0)
-                .summary("도보 8분")
-                .steps(List.of(
-                        TransitStepDto.builder()
-                                .mode(TransitStepDto.Mode.WALK)
-                                .instruction("카페 무지까지 850m 도보 이동")
-                                .distanceMeters(850)
-                                .durationSeconds(600)
-                                .polyline(List.of(
-                                        LatLngDto.builder().lat(req.getCurrentLat()).lng(req.getCurrentLng()).build(),
-                                        LatLngDto.builder().lat(37.5668).lng(126.9785).build()
-                                ))
-                                .build()
-                ))
-                .build();
-
-        // 장소1 → 장소2 (버스)
-        TransitSegmentDto seg12 = TransitSegmentDto.builder()
-                .fromName("장소1 · 카페 무지")
-                .fromLat(37.5668)
-                .fromLng(126.9785)
-                .toName("장소2 · 한강공원")
-                .toLat(37.5283)
-                .toLng(126.9326)
-                .distanceMeters(5400)
-                .durationSeconds(1500)
-                .fare(1250)
-                .summary("도보 3분 → 버스 6정거장 → 도보 2분")
-                .steps(List.of(
-                        TransitStepDto.builder()
-                                .mode(TransitStepDto.Mode.WALK)
-                                .instruction("무지앞 정류장까지 200m 이동")
-                                .distanceMeters(200)
-                                .durationSeconds(180)
-                                .polyline(List.of(
-                                        LatLngDto.builder().lat(37.5668).lng(126.9785).build(),
-                                        LatLngDto.builder().lat(37.5665).lng(126.9779).build()
-                                ))
-                                .build(),
-                        TransitStepDto.builder()
-                                .mode(TransitStepDto.Mode.BUS)
-                                .instruction("버스 273 탑승 → 한강공원 입구 하차")
-                                .lineName("273")
-                                .headsign("여의도 방면")
-                                .numStops(6)
-                                .distanceMeters(5000)
-                                .durationSeconds(1200)
-                                .polyline(List.of(
-                                        LatLngDto.builder().lat(37.5665).lng(126.9779).build(),
-                                        LatLngDto.builder().lat(37.5400).lng(126.9600).build(),
-                                        LatLngDto.builder().lat(37.5286).lng(126.9341).build()
-                                ))
-                                .build(),
-                        TransitStepDto.builder()
-                                .mode(TransitStepDto.Mode.WALK)
-                                .instruction("하차 후 200m 이동")
-                                .distanceMeters(200)
-                                .durationSeconds(120)
-                                .polyline(List.of(
-                                        LatLngDto.builder().lat(37.5286).lng(126.9341).build(),
-                                        LatLngDto.builder().lat(37.5283).lng(126.9326).build()
-                                ))
-                                .build()
-                ))
-                .build();
-
-        // 장소2 → 장소3 (지하철)
-        TransitSegmentDto seg23 = TransitSegmentDto.builder()
-                .fromName("장소2 · 한강공원")
-                .fromLat(37.5283)
-                .fromLng(126.9326)
-                .toName("장소3 · 경복궁")
-                .toLat(37.5796)
-                .toLng(126.9770)
-                .distanceMeters(7400)
-                .durationSeconds(2100)
-                .fare(1450)
-                .summary("도보 5분 → 지하철 7정거장 → 도보 4분")
-                .steps(List.of(
-                        TransitStepDto.builder()
-                                .mode(TransitStepDto.Mode.WALK)
-                                .instruction("여의나루역까지 350m 이동")
-                                .distanceMeters(350)
-                                .durationSeconds(300)
-                                .build(),
-                        TransitStepDto.builder()
-                                .mode(TransitStepDto.Mode.SUBWAY)
-                                .instruction("5호선 탑승 후 환승 → 3호선 경복궁역 하차")
-                                .lineName("5호선/3호선")
-                                .headsign("경복궁 방면")
-                                .numStops(7)
-                                .distanceMeters(6800)
-                                .durationSeconds(1560)
-                                .build(),
-                        TransitStepDto.builder()
-                                .mode(TransitStepDto.Mode.WALK)
-                                .instruction("출구에서 경복궁까지 250m 이동")
-                                .distanceMeters(250)
-                                .durationSeconds(240)
-                                .build()
-                ))
-                .build();
-
-        int totalDist = (seg01.getDistanceMeters() + seg12.getDistanceMeters() + seg23.getDistanceMeters());
-        int totalDur = (seg01.getDurationSeconds() + seg12.getDurationSeconds() + seg23.getDurationSeconds());
-        int totalFare = (seg01.getFare() + seg12.getFare() + seg23.getFare());
-
-        return StartRouteResponseDto.builder()
-                .routeId(routeId)
-                .totalDistanceMeters(totalDist)
-                .totalDurationSeconds(totalDur)
-                .totalFare(totalFare)
-                .currency("KRW")
-                .segments(List.of(seg01, seg12, seg23))
-                .build();
-    }
-
-    public CreateItineraryResponseDto createItinerary2(CreateItineraryRequestDto req) {
-        if (req == null || req.getPlaces() == null || req.getPlaces().size() < 2)
-            throw new IllegalArgumentException("places는 최소 2개 이상이어야 합니다.");
-        if (req.getPlaceCount() != req.getPlaces().size())
-            throw new IllegalArgumentException("placeCount와 places 길이가 일치해야 합니다.");
-        if (req.getPlaces().stream().anyMatch(p -> p.getLat() == null || p.getLng() == null))
-            throw new IllegalArgumentException("모든 좌표에 lat/lng가 필요합니다.");
-
-        IntStream.range(0, req.getPlaces().size()).forEach(i -> {
-            var c = req.getPlaces().get(i);
-            if (c.getOriginalIndex() == null) c.setOriginalIndex(i);
-        });
-
-        SequencePlanner.PlanResult plan = planner.plan(req.getPlaces());
-
-        Itinerary it = Itinerary.builder()
-                .totalDistanceMeters(plan.totalDistanceMeters())
-                .createdAt(LocalDateTime.now())
-                .build();
-
-        for (int order = 0; order < plan.order().size(); order++) {
-            int idx = plan.order().get(order);
-            CoordinateDto c = req.getPlaces().get(idx);
-
-            it.getStops().add(
-                    ItineraryStop.builder()
-                            .itinerary(it)
-                            .orderIndex(order)
-                            .originalIndex(c.getOriginalIndex())
-                            .lat(c.getLat())
-                            .lng(c.getLng())
-                            .build()
-            );
-        }
-
-        Itinerary saved = itineraryRepository.save(it);
-
-        List<OrderedStopDto> orderedStops = saved.getStops().stream()
-                .sorted(Comparator.comparingInt(ItineraryStop::getOrderIndex))
-                .map(s -> OrderedStopDto.builder()
-                        .order(s.getOrderIndex())
-                        .coord(CoordinateDto.builder()
-                                .lat(s.getLat())
-                                .lng(s.getLng())
-                                .originalIndex(s.getOriginalIndex())
-                                .build())
-                        .build())
-                .toList();
-
-        return CreateItineraryResponseDto.builder()
-                .itineraryId(saved.getId())
-                .orderedStops(orderedStops)
-                .totalDistanceMeters(saved.getTotalDistanceMeters())
-                .build();
+    private record Totals(int totalDurationSec, int totalDistanceMeters, int totalFare) {
     }
 
     public RouteRecommendListResponseDto getRecommendedRoutes(List<Theme> themes, String region, int limit, int offset) {
@@ -516,7 +239,7 @@ public class RouteService {
                 .totalDurationMinutes(route.getTotalDurationMinutes())
                 .estimatedCost((int) route.getTotalCost())
                 .thumbnailUrl(route.getImageUrl())
-                //.popularityScore(calculatePopularityScore(route))
+                .popularityScore(calculatePopularityScore(route))
                 .availableTimes(getAvailableTimes())
                 .build();
     }
@@ -550,9 +273,9 @@ public class RouteService {
         );
     }
 
-//    private Integer calculatePopularityScore(Route route) {
-//        return Math.max(100 - (route.getCost() / COST_DIVISOR), MIN_POPULARITY_SCORE);
-//    }
+    private Integer calculatePopularityScore(Route route) {
+        return Math.max(100 - (route.getTotalCost() / COST_DIVISOR), MIN_POPULARITY_SCORE);
+    }
 
     private List<LocalTime> getAvailableTimes() {
         return Arrays.asList(

@@ -48,7 +48,7 @@ public class Route extends BaseTimeEntity {
     private double totalDistance;
 
     @Column(nullable = false)
-    private double totalCost;
+    private int totalCost;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "json")

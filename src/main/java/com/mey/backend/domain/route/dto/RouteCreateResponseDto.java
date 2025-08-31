@@ -35,9 +35,6 @@ public class RouteCreateResponseDto {
     @Schema(description = "이미지 URL", example = "https://example.com/image.jpg")
     private String imageUrl;
 
-    @Schema(description = "비용", example = "50000")
-    private int cost;
-
     @Schema(description = "총 소요시간 (분)", example = "240")
     private int totalDurationMinutes;
 
@@ -55,4 +52,10 @@ public class RouteCreateResponseDto {
 
     @Schema(description = "지역명", example = "서울")
     private String regionName;
+
+    // 방문 순서(요청 places[] 인덱스 기준)
+    private List<Integer> order;
+
+    // placeId 순서 (추후 확장 고려)
+    private List<Long> orderedPlaceIds;
 }
