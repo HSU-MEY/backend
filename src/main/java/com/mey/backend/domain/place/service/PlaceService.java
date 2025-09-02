@@ -33,12 +33,6 @@ public class PlaceService {
         return new PlaceResponseDto(place);
     }
 
-    public PlaceSimpleResponseDto getPlaceByName(String nameKo) {
-        Place place = placeRepository.findByNameKo(nameKo)
-                .orElseThrow(() -> new PlaceException(ErrorStatus.PLACE_NOT_FOUND));
-        return new PlaceSimpleResponseDto(place);
-    }
-
     public List<PlaceResponseDto> getPopularPlaces() {
         List<Place> places = userLikePlaceRepository.findPopularPlaces();
         if (places.isEmpty()) {
