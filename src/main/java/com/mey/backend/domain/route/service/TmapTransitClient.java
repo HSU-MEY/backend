@@ -159,6 +159,7 @@ public class TmapTransitClient implements TransitClient {
         }
     }
 
+    // 좌표 문자열 → LatLngDto 리스트
     private List<LatLngDto> parseLinestring(String lines) {
         List<LatLngDto> list = new ArrayList<>();
         if (lines == null || lines.isBlank()) return list;
@@ -174,6 +175,7 @@ public class TmapTransitClient implements TransitClient {
         return list;
     }
 
+    // Tmap mode 문자열을 내부 enum으로 변환
     private TransitStepDto.Mode mapMode(String mode) {
         return switch (mode) {
             case "BUS" -> TransitStepDto.Mode.BUS;
@@ -186,6 +188,7 @@ public class TmapTransitClient implements TransitClient {
         };
     }
 
+    // mode → 한국어 번역
     private String modeToKorean(String mode) {
         return switch (mode) {
             case "BUS" -> "버스";
@@ -198,6 +201,7 @@ public class TmapTransitClient implements TransitClient {
         };
     }
 
+    // 총 거리/시간/요금만 반환
     @Override
     public TransitMetricsDto metrics(double fromLat, double fromLng,
                                      double toLat,   double toLng,
@@ -302,6 +306,8 @@ public class TmapTransitClient implements TransitClient {
                 .build();
     }
 
+
+    // 위도/경도 기반 직선거리 계산
     private static int haversineMeters(double lat1, double lon1, double lat2, double lon2) {
         double R = 6371000.0;
         double dLat = Math.toRadians(lat2 - lat1);
