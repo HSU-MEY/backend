@@ -7,12 +7,16 @@ import lombok.Getter;
 public class PlaceSimpleResponseDto {
 
     private Long id;
+    private String nameKo;
+    private String nameEn;
     private Double longitude;
     private Double latitude;
     private Long regionId;
 
     public PlaceSimpleResponseDto(Place place) {
         this.id = place.getPlaceId();
+        this.nameKo = place.getNameKo();
+        this.nameEn = place.getNameEn();
         this.longitude = place.getLongitude();
         this.latitude = place.getLatitude();
         this.regionId = place.getRegion() != null ? place.getRegion().getRegionId() : null;

@@ -19,7 +19,7 @@ public class PlaceController {
     private final PlaceService placeService;
 
     @GetMapping("/search")
-    public List<PlaceResponseDto> searchPlaces(@RequestParam String keyword) {
+    public List<PlaceSimpleResponseDto> searchPlaces(@RequestParam String keyword) {
         return placeService.searchPlaces(keyword);
     }
 
@@ -28,10 +28,6 @@ public class PlaceController {
         return placeService.getPlaceDetail(placeId);
     }
 
-    @GetMapping("/by-name")
-    public PlaceSimpleResponseDto getPlaceByName(@RequestParam String nameKo) {
-        return placeService.getPlaceByName(nameKo);
-    }
     @GetMapping("/popular")
     public List<PlaceResponseDto> getPopularPlaces() {
         return placeService.getPopularPlaces2();

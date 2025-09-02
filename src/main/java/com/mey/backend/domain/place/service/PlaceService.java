@@ -21,9 +21,9 @@ public class PlaceService {
     private final PlaceRepository placeRepository;
     private final UserLikePlaceRepository userLikePlaceRepository;
 
-    public List<PlaceResponseDto> searchPlaces(String keyword) {
+    public List<PlaceSimpleResponseDto> searchPlaces(String keyword) {
         return placeRepository.findByNameKoContainingIgnoreCase(keyword).stream()
-                .map(PlaceResponseDto::new)
+                .map(PlaceSimpleResponseDto::new)
                 .collect(Collectors.toList());
     }
 
