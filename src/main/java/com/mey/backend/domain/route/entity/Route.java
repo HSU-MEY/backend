@@ -42,16 +42,13 @@ public class Route extends BaseTimeEntity {
     private String imageUrl;
 
     @Column(nullable = false)
-    private int cost;
-
-    @Column(nullable = false)
     private int totalDurationMinutes;
 
     @Column(nullable = false)
     private double totalDistance;
 
     @Column(nullable = false)
-    private double totalCost;
+    private int totalCost;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "json")

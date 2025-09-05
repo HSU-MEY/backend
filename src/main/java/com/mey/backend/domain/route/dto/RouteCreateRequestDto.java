@@ -45,7 +45,7 @@ public class RouteCreateRequestDto {
     private double totalDistance;
 
     @Schema(description = "총 예상 비용", example = "30000")
-    private double totalCost;
+    private int totalCost;
 
     @Schema(description = "테마 목록")
     private List<Theme> themes;

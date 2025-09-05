@@ -1,29 +1,28 @@
 package com.mey.backend.domain.route.service;
 
-import com.mey.backend.domain.route.dto.RouteCreateRequestDto;
-import com.mey.backend.domain.route.dto.RouteCreateResponseDto;
-import com.mey.backend.domain.route.dto.RouteDetailResponseDto;
-import com.mey.backend.domain.route.dto.RouteRecommendListResponseDto;
-import com.mey.backend.domain.route.dto.RouteRecommendResponseDto;
-import com.mey.backend.domain.route.entity.Route;
-import com.mey.backend.domain.route.entity.RoutePlace;
-import com.mey.backend.domain.route.entity.Theme;
+import com.mey.backend.domain.place.entity.Place;
+import com.mey.backend.domain.place.repository.PlaceRepository;
+import com.mey.backend.domain.route.dto.*;
+import com.mey.backend.domain.route.entity.*;
 import com.mey.backend.domain.route.repository.RoutePlaceRepository;
 import com.mey.backend.domain.route.repository.RouteRepository;
 import com.mey.backend.domain.region.entity.Region;
 import com.mey.backend.domain.region.repository.RegionRepository;
+import com.mey.backend.global.exception.PlaceException;
 import com.mey.backend.global.exception.RouteException;
 import com.mey.backend.global.payload.status.ErrorStatus;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Stream;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -36,6 +35,142 @@ public class RouteService {
     private final RouteRepository routeRepository;
     private final RoutePlaceRepository routePlaceRepository;
     private final RegionRepository regionRepository;
+    private final TransitClient transitClient; // 실제 구현: TmapTransitClient 등
+    private final PlaceRepository placeRepository;
+    private final SequencePlanner sequencePlanner;   // GptSequencePlanner 구현체 주입
+
+    @Transactional
+    public RouteCreateResponseDto createRouteByAI(CreateRouteByPlaceIdsRequestDto req) {
+        // 1) 검증
+        if (req.getPlaceIds() == null || req.getPlaceIds().size() < 2) {
+            throw new IllegalArgumentException("2개 이상의 placeId가 필요합니다.");
+        }
+
+        // 2) placeId → Place 조회 (요청 순서 보존)
+        // findAllById는 순서를 보장하지 않으니, map으로 받아서 placeIds 순회
+        Map<Long, Place> found = placeRepository.findAllById(req.getPlaceIds())
+                .stream().collect(Collectors.toMap(Place::getPlaceId, p -> p));
+        List<Place> selected = new ArrayList<>(req.getPlaceIds().size());
+        for (Long id : req.getPlaceIds()) {
+            Place p = found.get(id);
+            if (p == null) throw new PlaceException(ErrorStatus.PLACE_NOT_FOUND);
+            selected.add(p);
+        }
+
+        // 3) GPT용 좌표 리스트 구성 (입력 인덱스 = originalIndex)
+        List<CoordinateDto> coordsForPlan = new ArrayList<>();
+        for (int i = 0; i < selected.size(); i++) {
+            Place p = selected.get(i);
+            coordsForPlan.add(CoordinateDto.builder()
+                    .lat(p.getLatitude())
+                    .lng(p.getLongitude())
+                    .originalIndex(i)
+                    .placeId(p.getPlaceId())
+                    .build());
+        }
+
+        // 4) 방문 순서 최적화 (GPT)
+        SequencePlanner.PlanResult plan;
+        try {
+            plan = sequencePlanner.plan(coordsForPlan);
+        } catch (Exception e) {
+            List<Integer> fallback = IntStream.range(0, coordsForPlan.size()).boxed().toList();
+            plan = new SequencePlanner.PlanResult(fallback, 0);
+        }
+        List<Integer> orderIdx = plan.order(); // 프론트 핵심: 입력 인덱스 기준 순서
+
+        // placeId 기준 순서 리스트도 생성 (옵션)
+        List<Long> orderedPlaceIds = orderIdx.stream()
+                .map(i -> selected.get(i).getPlaceId())
+                .toList();
+
+        // 5) TMAP으로 총 거리/시간/요금 합계
+        Totals totals = computeTotals(selected, orderedPlaceIds);
+        int totalSec   = totals.totalDurationSec();
+        int totalMin   = Math.max(1, totalSec / 60);
+        int totalMeter = totals.totalDistanceMeters();
+        int totalFare  = totals.totalFare();
+
+        // 6) Route 저장 (새 Place 저장 없음)
+        Region routeRegion = chooseRegionByMajority(selected);
+        String titleKo = "AI 추천 루트";
+        String titleEn = "AI Recommended Route";
+        String descKo  = String.format("총 %d개 장소, 약 %d분, %,dm 이동, 예상 교통비 %,d원",
+                selected.size(), totalMin, totalMeter, totalFare);
+        String descEn  = String.format("Total %d places, ~%d min, %,d m travel, est. fare %,d KRW",
+                selected.size(), totalMin, totalMeter, totalFare);
+        String imageUrl = resolveRouteImage(selected);
+
+        Route route = Route.builder()
+                .region(routeRegion)
+                .titleKo(titleKo)
+                .titleEn(titleEn)
+                .descriptionKo(descKo)
+                .descriptionEn(descEn)
+                .imageUrl(imageUrl)
+                .totalDurationMinutes(totalMin) // 분
+                .totalDistance(totalMeter) // m 저장
+                .totalCost(totalFare)
+                .themes(Collections.emptyList())
+                .routeType(RouteType.AI)
+                .build();
+        routeRepository.save(route);
+
+        // 7) RoutePlace 저장 (기존 Place만 연결)
+        int visitOrder = 1;
+        for (Integer idx : orderIdx) {
+            Place p = selected.get(idx);
+            routePlaceRepository.save(RoutePlace.builder()
+                    .route(route)
+                    .place(p)
+                    .visitOrder(visitOrder++)
+                    .recommendDurationMinutes(60)
+                    .build());
+        }
+
+        // 8) 응답
+        return RouteCreateResponseDto.builder()
+                .routeId(route.getId())
+                .titleKo(route.getTitleKo())
+                .titleEn(route.getTitleEn())
+                .descriptionKo(route.getDescriptionKo())
+                .descriptionEn(route.getDescriptionEn())
+                .imageUrl(route.getImageUrl())
+                .totalDurationMinutes(route.getTotalDurationMinutes())
+                .totalDistance(route.getTotalDistance() / 1000.0) // km로 내려줌
+                .totalCost(route.getTotalCost())
+                .themes(route.getThemes())
+                .routeType(route.getRouteType())
+                .regionName(route.getRegion() != null ? route.getRegion().getNameKo() : null)
+                .order(orderIdx)                   // [2,0,1] 같은 입력 인덱스 순서
+                .orderedPlaceIds(orderedPlaceIds)  // [303,101,202] 같은 실제 placeId 순서
+                .build();
+    }
+
+    private Totals computeTotals(List<Place> selected, List<Long> orderedPlaceIds) {
+        Map<Long, Place> byId = selected.stream()
+                .collect(Collectors.toMap(Place::getPlaceId, p -> p));
+
+        int sec = 0, dist = 0, fare = 0;
+
+        for (int i = 0; i < orderedPlaceIds.size() - 1; i++) {
+            Place from = byId.get(orderedPlaceIds.get(i));
+            Place to   = byId.get(orderedPlaceIds.get(i + 1));
+
+            TransitMetricsDto m = transitClient.metrics(
+                    from.getLatitude(), from.getLongitude(),
+                    to.getLatitude(),   to.getLongitude(),
+                    null
+            );
+            sec  += m.getDurationSeconds();
+            dist += m.getDistanceMeters();
+            fare += m.getFare();
+        }
+        return new Totals(sec, dist, fare);
+    }
+
+    private record Totals(int totalDurationSec, int totalDistanceMeters, int totalFare) {
+    }
 
     public RouteRecommendListResponseDto getRecommendedRoutes(List<Theme> themes, String region, int limit, int offset) {
         String themeJson = null;
@@ -69,7 +204,6 @@ public class RouteService {
                 .totalCount(totalCount)
                 .build();
     }
-
 
     private RouteRecommendResponseDto convertToRouteRecommendDto(Route route) {
         return RouteRecommendResponseDto.builder()
@@ -116,7 +250,7 @@ public class RouteService {
     }
 
     private Integer calculatePopularityScore(Route route) {
-        return Math.max(100 - (route.getCost() / COST_DIVISOR), MIN_POPULARITY_SCORE);
+        return Math.max(100 - (route.getTotalCost() / COST_DIVISOR), MIN_POPULARITY_SCORE);
     }
 
     private List<LocalTime> getAvailableTimes() {
@@ -130,10 +264,10 @@ public class RouteService {
     public RouteDetailResponseDto getRouteDetail(Long routeId, LocalDate date, LocalTime startTime) {
         Route route = findRouteById(routeId);
         List<RoutePlace> routePlaces = routePlaceRepository.findByRouteIdOrderByVisitOrder(routeId);
-        
-        List<RouteDetailResponseDto.RoutePlaceDto> placeDtos = routePlaces.isEmpty() 
-            ? createMockRoutePlaces(startTime)
-            : convertToRoutePlaceDtos(routePlaces, startTime);
+
+        List<RouteDetailResponseDto.RoutePlaceDto> placeDtos = routePlaces.isEmpty()
+                ? createMockRoutePlaces(startTime)
+                : convertToRoutePlaceDtos(routePlaces, startTime);
 
         return buildRouteDetailResponse(route, placeDtos);
     }
@@ -253,6 +387,29 @@ public class RouteService {
         );
     }
 
+
+    private Region chooseRegionByMajority(List<Place> places) {
+
+        return places.stream()
+                .map(Place::getRegion)
+                .filter(Objects::nonNull)
+                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
+                .entrySet().stream()
+                .max(Map.Entry.comparingByValue())
+                .map(Map.Entry::getKey)
+                .orElse(null); // 전부 null이면 null 허용 (DB 제약 확인)
+    }
+
+    private String resolveRouteImage(List<Place> places) {
+        // 1) 첫 장소의 이미지, 2) 없으면 기본 이미지
+        for (Place p : places) {
+            if (p.getImageUrl() != null && !p.getImageUrl().isBlank()) {
+                return p.getImageUrl();
+            }
+        }
+        return "/static/images/route-default.png"; // 프로젝트 맞게 경로/URL 지정
+    }
+
     public RouteCreateResponseDto createRoute(RouteCreateRequestDto request) {
         Region region = null;
         if (request.getRegionId() != null) {
@@ -267,7 +424,6 @@ public class RouteService {
                 .descriptionKo(request.getDescriptionKo())
                 .descriptionEn(request.getDescriptionEn())
                 .imageUrl(request.getImageUrl())
-                .cost(request.getCost())
                 .totalDurationMinutes(request.getTotalDurationMinutes())
                 .totalDistance(request.getTotalDistance())
                 .totalCost(request.getTotalCost())
@@ -284,7 +440,6 @@ public class RouteService {
                 .descriptionKo(savedRoute.getDescriptionKo())
                 .descriptionEn(savedRoute.getDescriptionEn())
                 .imageUrl(savedRoute.getImageUrl())
-                .cost(savedRoute.getCost())
                 .totalDurationMinutes(savedRoute.getTotalDurationMinutes())
                 .totalDistance(savedRoute.getTotalDistance())
                 .totalCost(savedRoute.getTotalCost())
@@ -293,5 +448,4 @@ public class RouteService {
                 .regionName(savedRoute.getRegion() != null ? savedRoute.getRegion().getNameKo() : null)
                 .build();
     }
-
 }

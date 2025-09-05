@@ -1,9 +1,6 @@
 package com.mey.backend.domain.route.controller;
 
-import com.mey.backend.domain.route.dto.RouteCreateRequestDto;
-import com.mey.backend.domain.route.dto.RouteCreateResponseDto;
-import com.mey.backend.domain.route.dto.RouteDetailResponseDto;
-import com.mey.backend.domain.route.dto.RouteRecommendListResponseDto;
+import com.mey.backend.domain.route.dto.*;
 import com.mey.backend.domain.route.entity.Theme;
 import com.mey.backend.domain.route.service.RouteService;
 import com.mey.backend.global.payload.CommonResponse;
@@ -11,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -35,23 +33,42 @@ public class RouteController {
         return CommonResponse.onSuccess(response);
     }
 
+    @Operation(
+            summary = "AI가이드 추천 루트 생성",
+            description = "AI가이드 추천 루트를 생성하고 결과를 반환합니다."
+    )
+    @PostMapping("/ai-recommend")
+    public CommonResponse<RouteCreateResponseDto> createByAI(
+            @Validated @RequestBody CreateRouteByPlaceIdsRequestDto request) {
+        RouteCreateResponseDto response = routeService.createRouteByAI(request);
+        return CommonResponse.onSuccess(response);
+    }
+
+    @Operation(
+            summary = "추천 루트 조회",
+            description = "추천 루트들을 조회한 결과를 반환합니다."
+    )
     @GetMapping("/recommend")
     public CommonResponse<RouteRecommendListResponseDto> getRecommendedRoutes(
             @RequestParam(required = false) List<Theme> themes,
             @RequestParam(required = false) String region,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
-        
+
         RouteRecommendListResponseDto response = routeService.getRecommendedRoutes(themes, region, limit, offset);
         return CommonResponse.onSuccess(response);
     }
 
+    @Operation(
+            summary = "루트 아이디로 루트 검색",
+            description = "루트 아이디로 루트를 검색한 결과를 반환합니다."
+    )
     @GetMapping("/{routeId}")
     public CommonResponse<RouteDetailResponseDto> getRouteDetail(
             @PathVariable Long routeId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.TIME) LocalTime startTime) {
-        
+
         RouteDetailResponseDto response = routeService.getRouteDetail(routeId, date, startTime);
         return CommonResponse.onSuccess(response);
     }
