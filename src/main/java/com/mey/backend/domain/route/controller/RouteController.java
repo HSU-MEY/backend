@@ -45,6 +45,20 @@ public class RouteController {
     }
 
     @Operation(
+            summary = "루트 시작",
+            description = "현재 위치와 루트 ID를 받아 현재 → 1번째, i번째 → i+1번째 구간의 단계별 길찾기 정보를 반환합니다."
+    )
+    @PostMapping("/{route_id}/start")
+    public CommonResponse<StartRouteResponse> startRoute(
+            @PathVariable("route_id") Long routeId,
+            @RequestParam double latitude,
+            @RequestParam double longitude
+    ) {
+        StartRouteResponse response = routeService.startRoute(routeId, latitude, longitude);
+        return CommonResponse.onSuccess(response);
+    }
+
+    @Operation(
             summary = "추천 루트 조회",
             description = "추천 루트들을 조회한 결과를 반환합니다."
     )

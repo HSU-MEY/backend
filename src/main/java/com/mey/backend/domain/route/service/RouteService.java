@@ -39,6 +39,55 @@ public class RouteService {
     private final PlaceRepository placeRepository;
     private final SequencePlanner sequencePlanner;   // GptSequencePlanner 구현체 주입
 
+    @Transactional(readOnly = true)
+    public StartRouteResponse startRoute(Long routeId, double latitude, double longitude) {
+        Route route = routeRepository.findById(routeId)
+                .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 루트입니다."));
+
+        List<RoutePlace> routePlaces = routePlaceRepository.findByRouteIdOrderByVisitOrder(routeId);
+
+        List<Place> places = routePlaces.stream()
+                .map(RoutePlace::getPlace)   // 중간 엔티티에서 Place 꺼내기
+                .toList();
+        if (places.isEmpty()) {
+            throw new IllegalStateException("루트에 장소가 없습니다.");
+        }
+
+        List<TransitSegmentDto> segments = new ArrayList<>();
+
+        // 현재 위치 → 첫 번째 장소
+        Place firstPlace = places.get(0);
+        segments.add(
+                transitClient.route(
+                        "현재 위치",
+                        latitude, longitude,
+                        firstPlace.getNameKo(),
+                        firstPlace.getLatitude(), firstPlace.getLongitude(),
+                        null
+                )
+        );
+
+        // i → i+1
+        for (int i = 0; i < places.size() - 1; i++) {
+            Place from = places.get(i);
+            Place to = places.get(i + 1);
+
+            segments.add(
+                    transitClient.route(
+                            from.getNameKo(),
+                            from.getLatitude(), from.getLongitude(),
+                            to.getNameKo(),
+                            to.getLatitude(), to.getLongitude(),
+                            null
+                    )
+            );
+        }
+
+        return StartRouteResponse.builder()
+                .segments(segments)
+                .build();
+    }
+
     @Transactional
     public RouteCreateResponseDto createRouteByAI(CreateRouteByPlaceIdsRequestDto req) {
         // 1) 검증
