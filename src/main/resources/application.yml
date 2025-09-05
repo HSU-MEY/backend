@@ -20,12 +20,12 @@ jwt:
 
 openai:
   api:
-    key: ${OPENAI_API_KEY}
+    key: ${OPENAI_API_KEY:dummy}
     url: https://api.openai.com/v1/chat/completions
 
 tmap:
   transit:
     base-url: https://apis.openapi.sk.com/transit
-    app-key: ${TMAP_APP_KEY}
+    app-key: ${TMAP_APP_KEY:dummy}
     lang: 0 # 0=Korean
     count: 1
