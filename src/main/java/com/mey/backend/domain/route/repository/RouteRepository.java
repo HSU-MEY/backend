@@ -18,7 +18,7 @@ public interface RouteRepository extends JpaRepository<Route, Long> {
     List<Route> findByRegionName(@Param("regionName") String regionName);
     
     // 테마와 지역으로 필터링된 루트 조회
-    @Query(value = "SELECT * FROM routes r LEFT JOIN regions reg ON r.region_id = reg.region_id WHERE (:themes IS NULL OR JSON_OVERLAPS(r.themes, CAST(:themes AS JSON))) AND (:regionName IS NULL OR reg.name_ko = :regionName)", nativeQuery = true)
+    @Query(value = "SELECT r.* FROM routes r LEFT JOIN regions reg ON r.region_id = reg.region_id WHERE (:themes IS NULL OR JSON_OVERLAPS(r.themes, CAST(:themes AS JSON))) AND (:regionName IS NULL OR reg.name_ko = :regionName)", nativeQuery = true)
     List<Route> findByThemesAndRegion(@Param("themes") String themes, @Param("regionName") String regionName);
     
     // 여러 테마 중 하나라도 포함하는 루트 조회
