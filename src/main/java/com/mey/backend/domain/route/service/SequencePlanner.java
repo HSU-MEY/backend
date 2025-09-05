@@ -3,7 +3,6 @@ package com.mey.backend.domain.route.service;
 import com.mey.backend.domain.route.dto.CoordinateDto;
 import java.util.List;
 
-@FunctionalInterface
 public interface SequencePlanner {
     PlanResult plan(List<CoordinateDto> points);
 
