@@ -23,3 +23,15 @@ logging:
     com.mey.backend: DEBUG
     org.springframework.web: DEBUG
     org.hibernate.tool.schema.internal: TRACE
+
+cloud:
+  aws:
+    s3:
+      bucket: mey-s3
+    region:
+      static: ap-northeast-2
+    stack:
+      auto: false
+    credentials:
+      access-key: ${AWS_ACCESS_KEY}
+      secret-key: ${AWS_SECRET_KEY}
