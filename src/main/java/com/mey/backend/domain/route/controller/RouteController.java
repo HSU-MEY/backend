@@ -33,6 +33,10 @@ public class RouteController {
         return CommonResponse.onSuccess(response);
     }
 
+    @Operation(
+            summary = "AI가이드 추천 루트 생성",
+            description = "AI가이드 추천 루트를 생성하고 결과를 반환합니다."
+    )
     @PostMapping("/ai-recommend")
     public CommonResponse<RouteCreateResponseDto> createByAI(
             @Validated @RequestBody CreateRouteByPlaceIdsRequestDto request) {
@@ -40,6 +44,10 @@ public class RouteController {
         return CommonResponse.onSuccess(response);
     }
 
+    @Operation(
+            summary = "추천 루트 조회",
+            description = "추천 루트들을 조회한 결과를 반환합니다."
+    )
     @GetMapping("/recommend")
     public CommonResponse<RouteRecommendListResponseDto> getRecommendedRoutes(
             @RequestParam(required = false) List<Theme> themes,
@@ -51,6 +59,10 @@ public class RouteController {
         return CommonResponse.onSuccess(response);
     }
 
+    @Operation(
+            summary = "루트 아이디로 루트 검색",
+            description = "루트 아이디로 루트를 검색한 결과를 반환합니다."
+    )
     @GetMapping("/{routeId}")
     public CommonResponse<RouteDetailResponseDto> getRouteDetail(
             @PathVariable Long routeId,

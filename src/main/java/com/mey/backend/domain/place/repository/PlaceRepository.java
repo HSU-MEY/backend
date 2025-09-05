@@ -10,7 +10,7 @@ import java.util.Optional;
 
 public interface PlaceRepository extends JpaRepository<Place, Long> {
 
-    List<Place> findByNameKoContainingIgnoreCase(String keyword);
+    List<Place> findByNameKoContainingIgnoreCaseOrNameEnContainingIgnoreCase(String nameKo, String nameEn);
 
     @Query(value = "SELECT * FROM places WHERE JSON_CONTAINS(themes, :themeJson) LIMIT :limit", nativeQuery = true)
     List<Place> findByThemeKeywordWithLimit(@Param("themeJson") String themeJson, @Param("limit") int limit);

@@ -23,6 +23,6 @@ public class PlaceResponseDto {
         this.descriptionEn = place.getDescriptionEn();
         this.longitude = place.getLongitude();
         this.latitude = place.getLatitude();
-        this.regionId = place.getRegion() != null ? place.getRegion().getRegionId() : null;
+        this.regionId = place.getRegion().getRegionId();
     }
 }

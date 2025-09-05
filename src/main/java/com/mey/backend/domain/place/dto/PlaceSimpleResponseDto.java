@@ -19,6 +19,6 @@ public class PlaceSimpleResponseDto {
         this.nameEn = place.getNameEn();
         this.longitude = place.getLongitude();
         this.latitude = place.getLatitude();
-        this.regionId = place.getRegion() != null ? place.getRegion().getRegionId() : null;
+        this.regionId = place.getRegion().getRegionId();
     }
 }
