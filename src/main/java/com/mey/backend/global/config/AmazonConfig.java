@@ -20,22 +20,25 @@ public class AmazonConfig {
     @Value("${cloud.aws.credentials.accessKey}")
     private String accessKey;
 
+    @Value("${cloud.aws.credentials.secretKey}")
     private String secretKey;
 
+    @Value("${cloud.aws.region.static}")
     private String region;
 
+    @Value("${cloud.aws.s3.bucket}")
     private String bucket;
 
     @PostConstruct
     public void init() {
-        this.credentials = new BasicAWSCredentials("accessKey", "secretKey");
+        this.credentials = new BasicAWSCredentials(accessKey, secretKey);
     }
 
     @Bean
     public AmazonS3 s3Client() {
-        BasicAWSCredentials awsCredentials = new BasicAWSCredentials("accessKey", "secretKey");
+        BasicAWSCredentials awsCredentials = new BasicAWSCredentials(accessKey, secretKey);
         return AmazonS3ClientBuilder.standard()
-                .withRegion("ap-northeast-2")
+                .withRegion(region)
                 .withCredentials(new AWSStaticCredentialsProvider(awsCredentials))
                 .build();
     }
