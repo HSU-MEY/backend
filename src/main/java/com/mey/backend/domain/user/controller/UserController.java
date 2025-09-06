@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @Tag(name = "사용자", description = "사용자 관련 API")
 @RestController
@@ -37,12 +38,11 @@ public class UserController {
             description = "JWT 토큰으로 인증된 현재 사용자의 정보 수정",
             security = @SecurityRequirement(name = "bearerAuth")
     )
-    @PutMapping("/profiles")
+    @PutMapping(value = "/profiles", consumes = "multipart/form-data")
     public CommonResponse<Void> updateProfile(@Parameter(hidden = true) @CurrentUser User user,
-                                              @RequestBody UserInfoUpdateRequest request) {
-        userService.updateUserInfo(user, request);
+                                              @RequestPart("request") UserInfoUpdateRequest request,
+                                              @RequestPart("profileImage") MultipartFile profileImage) {
+        userService.updateUserInfo(user, request, profileImage);
         return CommonResponse.onSuccess(null);
     }
-
-
 }
