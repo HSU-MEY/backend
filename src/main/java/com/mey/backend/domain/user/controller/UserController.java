@@ -40,8 +40,8 @@ public class UserController {
     )
     @PutMapping(value = "/profiles", consumes = "multipart/form-data")
     public CommonResponse<Void> updateProfile(@Parameter(hidden = true) @CurrentUser User user,
-                                              @RequestBody UserInfoUpdateRequest request,
-                                              @RequestPart MultipartFile profileImage) {
+                                              @RequestPart("request") UserInfoUpdateRequest request,
+                                              @RequestPart("profileImage") MultipartFile profileImage) {
         userService.updateUserInfo(user, request, profileImage);
         return CommonResponse.onSuccess(null);
     }
