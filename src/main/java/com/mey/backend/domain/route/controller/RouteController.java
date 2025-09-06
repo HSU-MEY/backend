@@ -61,17 +61,17 @@ public class RouteController {
     @Operation(
             summary = "추천 루트 조회",
             description = "추천 루트들을 조회한 결과를 반환합니다."
-    )
-    @GetMapping("/recommend")
+    )@GetMapping("/recommend")
     public CommonResponse<RouteRecommendListResponseDto> getRecommendedRoutes(
             @RequestParam(required = false) List<Theme> themes,
-            @RequestParam(required = false) String region,
             @RequestParam(defaultValue = "20") int limit,
             @RequestParam(defaultValue = "0") int offset) {
 
-        RouteRecommendListResponseDto response = routeService.getRecommendedRoutes(themes, region, limit, offset);
+        RouteRecommendListResponseDto response = routeService.getRecommendedRoutes(themes, limit, offset);
         return CommonResponse.onSuccess(response);
     }
+
+
 
     @Operation(
             summary = "루트 아이디로 루트 검색",

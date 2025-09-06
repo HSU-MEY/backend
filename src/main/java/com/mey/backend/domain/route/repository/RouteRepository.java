@@ -1,6 +1,7 @@
 package com.mey.backend.domain.route.repository;
 
 import com.mey.backend.domain.route.entity.Route;
+import com.mey.backend.domain.route.entity.RouteType;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -28,4 +29,17 @@ public interface RouteRepository extends JpaRepository<Route, Long> {
     // 인기도순 정렬 (비용 기준으로 대체)
     @Query("SELECT r FROM Route r ORDER BY r.totalCost ASC")
     List<Route> findAllOrderByPopularity();
+
+
+    // POPULAR 전체
+    List<Route> findByRouteType(RouteType routeType);
+
+    // POPULAR + themes 조건
+    @Query(value = """
+    SELECT *
+    FROM routes r
+    WHERE r.route_type = 'POPULAR'
+      AND JSON_OVERLAPS(r.themes, CAST(:themesJson AS JSON))
+    """, nativeQuery = true)
+    List<Route> findPopularByThemes(@Param("themesJson") String themesJson);
 }
