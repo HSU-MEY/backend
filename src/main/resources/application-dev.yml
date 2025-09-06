@@ -7,18 +7,16 @@ spring:
 
   sql:
     init:
-      mode: always
-      data-locations: classpath:sql/data-mysql.sql
+      mode: never
 
   jpa:
     hibernate:
       ddl-auto: create-drop
-    defer-datasource-initialization: true
     show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
-        format-sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
 
 logging:
   level:
