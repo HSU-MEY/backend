@@ -12,13 +12,15 @@ public class UserInfoResponse {
     private String nickname;
     private String email;
     private Role role;
+    private String profileImageUrl;
 
     public static UserInfoResponse from(User user) {
         return new UserInfoResponse(
                 user.getId(),
                 user.getNickname(),
                 user.getEmail(),
-                user.getRole()
+                user.getRole(),
+                user.getProfileImageUrl()
         );
     }
 }
