@@ -17,10 +17,10 @@ import org.springframework.context.annotation.Configuration;
 public class AmazonConfig {
     private AWSCredentials credentials;
 
-    @Value("${cloud.aws.credentials.accessKey}")
+    @Value("${cloud.aws.credentials.access-key}")
     private String accessKey;
 
-    @Value("${cloud.aws.credentials.secretKey}")
+    @Value("${cloud.aws.credentials.secret-key}")
     private String secretKey;
 
     @Value("${cloud.aws.region.static}")
@@ -28,6 +28,12 @@ public class AmazonConfig {
 
     @Value("${cloud.aws.s3.bucket}")
     private String bucket;
+
+    @Value("${cloud.aws.s3.path.profile}")
+    private String profilePath;
+
+    @Value("${cloud.aws.s3.path.place}")
+    private String placePath;
 
     @PostConstruct
     public void init() {

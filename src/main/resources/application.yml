@@ -33,6 +33,9 @@ cloud:
   aws:
     s3:
       bucket: mey-cd-bucket
+      path:
+        profile: profile
+        place: place
     region:
       static: ap-northeast-2
     stack:
