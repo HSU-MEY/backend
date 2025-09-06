@@ -9,8 +9,15 @@ jobs:
     name: CI
     runs-on: ubuntu-latest
     env:
+      S3_BUCKET_NAME: ${{ secrets.AWS_S3_BUCKET_NAME }}
+      DEPLOYMENT_APPLICATION_NAME: MEY-WAS
+      DEPLOYMENT_GROUP_NAME: MEY-CD
+      PROJECT_NAME: MEY
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-      TMAP_APP_KEY:   ${{ secrets.TMAP_APP_KEY }}
+      TMAP_APP_KEY: ${{ secrets.TMAP_APP_KEY }}
+      S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+      S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
 
     steps:
       - uses: actions/checkout@v2
