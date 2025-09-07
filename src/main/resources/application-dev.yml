@@ -7,7 +7,8 @@ spring:
 
   sql:
     init:
-      mode: never
+      mode: always
+      data-locations: classpath:sql/data-mysql.sql
 
   jpa:
     hibernate:
@@ -18,8 +19,6 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
-        hbm2ddl:
-          import_files: sql/data-mysql.sql
 
 logging:
   level:

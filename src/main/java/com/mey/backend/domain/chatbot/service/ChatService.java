@@ -26,6 +26,7 @@ import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatModel;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -181,18 +182,50 @@ public class ChatService {
     }
     
     @EventListener(ApplicationReadyEvent.class)
+    @Transactional(readOnly = true)
     public void initializeVectorStore() {
         log.info("Initializing vector store with place data...");
         
+        // 재시도 로직으로 SQL 데이터 로딩 대기
+        int maxRetries = 5;
+        int retryCount = 0;
+        List<Place> allPlaces = null;
+        
+        while (retryCount < maxRetries) {
+            try {
+                allPlaces = placeRepository.findAll();
+                if (!allPlaces.isEmpty()) {
+                    break; // 데이터가 있으면 중단
+                }
+                
+                log.info("No places found, waiting for data loading... (attempt {}/{})", retryCount + 1, maxRetries);
+                Thread.sleep(1000); // 1초 대기 후 재시도
+                retryCount++;
+                
+            } catch (Exception e) {
+                log.warn("Error during place data retrieval (attempt {}/{}): {}", retryCount + 1, maxRetries, e.getMessage());
+                retryCount++;
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+        
+        if (allPlaces == null || allPlaces.isEmpty()) {
+            log.warn("No places data found after {} retries. Vector store will be empty.", maxRetries);
+            return;
+        }
+        
         try {
-            List<Place> allPlaces = placeRepository.findAll();
             log.info("Found {} places to load into vector store", allPlaces.size());
             
             for (Place place : allPlaces) {
                 String document = createDocumentFromPlace(place);
                 Map<String, Object> metadata = createMetadataFromPlace(place);
                 
-                // RagService를 통해 문서 저장 (구체적인 메서드는 RagService 구조에 따라 조정 필요)
                 ragService.addDocument(String.valueOf(place.getPlaceId()), document, metadata);
             }
             
