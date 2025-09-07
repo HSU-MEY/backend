@@ -64,8 +64,8 @@ public class IntentClassifier {
                    - 예시: "기존에 만들어진 부산 드라마 루트 있어?", "만들어진 K-POP 루트 보여줘"
                 
                 3. SEARCH_PLACES: 특정 장소나 명소에 대한 정보를 찾는 요청
-                   - 키워드: "장소", "명소", "어디", "위치", "곳", "찾아줘"
-                   - 예시: "홍대 근처 K-POP 장소 어디 있어?", "명동 맛집 찾아줘"
+                   - 키워드: "장소", "명소", "어디", "위치", "곳", "찾아줘", "근처", "~에 있는", "추천해줘" (장소 찾기 맥락에서)
+                   - 예시: "홍대 근처 K-POP 장소 어디 있어?", "명동 맛집 찾아줘", "홍대 근처 K-POP 장소 추천해줘"
                 
                 4. GENERAL_QUESTION: 한류나 여행에 대한 일반적인 질문
                    - 키워드: 설명 요청, 정보 질문
@@ -118,8 +118,13 @@ public class IntentClassifier {
             return new IntentClassificationResult("SEARCH_EXISTING_ROUTES", 0.8, "키워드 기반 분류: 기존 루트 검색");
         }
         
-        // SEARCH_PLACES 키워드
-        if (containsAnyKeyword(lowerQuery, "장소", "명소", "어디", "위치", "곳", "찾아", "근처")) {
+        // SEARCH_PLACES 키워드 (근처 키워드가 있으면 우선 처리)
+        if (containsAnyKeyword(lowerQuery, "근처")) {
+            return new IntentClassificationResult("SEARCH_PLACES", 0.9, "키워드 기반 분류: 근처 장소 검색");
+        }
+        
+        // SEARCH_PLACES 기타 키워드
+        if (containsAnyKeyword(lowerQuery, "장소", "명소", "어디", "위치", "곳", "찾아")) {
             return new IntentClassificationResult("SEARCH_PLACES", 0.8, "키워드 기반 분류: 장소 검색");
         }
         
