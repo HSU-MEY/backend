@@ -1,6 +1,5 @@
 package com.mey.backend.domain.chatbot.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mey.backend.domain.chatbot.dto.ChatContext;
 import com.mey.backend.domain.chatbot.dto.ChatRequest;
 import com.mey.backend.domain.chatbot.dto.ChatResponse;
@@ -11,6 +10,7 @@ import com.mey.backend.domain.place.entity.Place;
 import com.mey.backend.domain.place.repository.PlaceRepository;
 import com.mey.backend.domain.route.dto.CreateRouteByPlaceIdsRequestDto;
 import com.mey.backend.domain.route.dto.RouteCreateResponseDto;
+import com.mey.backend.domain.route.entity.Route;
 import com.mey.backend.domain.route.service.RouteService;
 import com.mey.backend.domain.route.repository.RouteRepository;
 import java.util.*;
@@ -38,8 +38,6 @@ public class ChatService {
     @EventListener(ApplicationReadyEvent.class)
     @Transactional(readOnly = true)
     public void initializeVectorStore() {
-        log.info("Initializing vector store with place data...");
-
         // 재시도 로직으로 SQL 데이터 로딩 대기
         int maxRetries = 5;
         int retryCount = 0;
@@ -52,12 +50,10 @@ public class ChatService {
                     break; // 데이터가 있으면 중단
                 }
 
-                log.info("No places found, waiting for data loading... (attempt {}/{})", retryCount + 1, maxRetries);
                 Thread.sleep(1000); // 1초 대기 후 재시도
                 retryCount++;
 
             } catch (Exception e) {
-                log.warn("Error during place data retrieval (attempt {}/{}): {}", retryCount + 1, maxRetries, e.getMessage());
                 retryCount++;
                 try {
                     Thread.sleep(1000);
@@ -69,23 +65,19 @@ public class ChatService {
         }
 
         if (allPlaces == null || allPlaces.isEmpty()) {
-            log.warn("No places data found after {} retries. Vector store will be empty.", maxRetries);
+            log.warn("{}번 시도했음에도 DB에서 장소 정보를 로드할 수 없습니다. Vector Store가 비어있게 됩니다.", maxRetries);
             return;
         }
 
         try {
-            log.info("Found {} places to load into vector store", allPlaces.size());
-
             for (Place place : allPlaces) {
                 String document = createDocumentFromPlace(place);
                 Map<String, Object> metadata = createMetadataFromPlace(place);
 
                 ragService.addDocument(String.valueOf(place.getPlaceId()), document, metadata);
             }
-
-            log.info("Successfully loaded {} places into vector store", allPlaces.size());
         } catch (Exception e) {
-            log.error("Failed to initialize vector store", e);
+            log.error("Vector Store 초기화를 실패했습니다.", e);
         }
     }
 
@@ -126,14 +118,12 @@ public class ChatService {
      * 상태 기반 대화 처리
      */
     private ChatResponse handleStatefulConversation(ChatRequest request, ChatContext context) {
-        log.info("Handling stateful conversation in state: {}", context.getConversationState());
-
         return switch (context.getConversationState()) {
             case AWAITING_THEME -> handleThemeInput(request, context);
             case AWAITING_REGION -> handleRegionInput(request, context);
             case AWAITING_DAYS -> handleDaysInput(request, context);
             default -> {
-                log.warn("Unknown conversation state: {}, resetting to initial", context.getConversationState());
+                log.warn("알 수 없는 대화 상태: {}, 초기화합니다.", context.getConversationState());
                 ChatContext resetContext = conversationManager.resetConversationState(context);
                 yield processUserQuery(request.toBuilder().context(resetContext).build());
             }
@@ -233,8 +223,6 @@ public class ChatService {
                 .build();
 
         conversationManager.saveSessionContext(completeContext.getSessionId(), completeContext);
-
-        log.info("All required info collected. Creating route for context: {}", completeContext);
 
         return recommendRouteWithRag(completeContext,
                 completeContext.getDays() + "일 " +
@@ -475,28 +463,25 @@ public class ChatService {
     /**
      * 컨텍스트와 쿼리를 기반으로 기존 루트를 검색합니다.
      */
-    private List<com.mey.backend.domain.route.entity.Route> searchExistingRoutes(ChatContext context, String query) {
-        List<com.mey.backend.domain.route.entity.Route> routes = new ArrayList<>();
-        
+    private List<Route> searchExistingRoutes(ChatContext context, String query) {
         // 1. 테마와 지역 정보가 있는 경우 우선 검색
         if (context.getTheme() != null && context.getRegion() != null) {
             String themeJson = "[\"" + context.getTheme().getRouteTheme() + "\"]";
-            routes = routeRepository.findByThemesAndRegion(themeJson, context.getRegion());
+            return routeRepository.findByThemesAndRegion(themeJson, context.getRegion());
         }
+
         // 2. 테마만 있는 경우
-        else if (context.getTheme() != null) {
-            routes = routeRepository.findByThemesContaining(context.getTheme().getRouteTheme());
+        if (context.getTheme() != null) {
+            return routeRepository.findByThemesContaining(context.getTheme().getRouteTheme());
         }
+
         // 3. 지역만 있는 경우
-        else if (context.getRegion() != null) {
-            routes = routeRepository.findByRegionName(context.getRegion());
+        if (context.getRegion() != null) {
+            return routeRepository.findByRegionName(context.getRegion());
         }
+
         // 4. 정보가 없는 경우 인기 루트 반환
-        else {
-            routes = routeRepository.findAllOrderByPopularity();
-        }
-        
-        return routes;
+        return routeRepository.findAllOrderByPopularity();
     }
     
 }

@@ -156,25 +156,7 @@ public class ChatResponseBuilder {
                 .themes(themeStrings)
                 .build();
     }
-    
-    /**
-     * 테마별 맞춤 메시지 생성
-     */
-    public String generateThemeBasedMessage(ChatContext context, String baseMessage) {
-        if (context.getTheme() == null) {
-            return baseMessage;
-        }
-        
-        String themeEmoji = switch (context.getTheme()) {
-            case KPOP -> "🎵";
-            case KDRAMA -> "📺";
-            case KFOOD -> "🍜";
-            case KFASHION -> "👗";
-        };
-        
-        return themeEmoji + " " + baseMessage;
-    }
-    
+
     /**
      * 단계별 안내 메시지 생성
      */
