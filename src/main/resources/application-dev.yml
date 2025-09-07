@@ -4,21 +4,22 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     driver-class-name: com.mysql.cj.jdbc.Driver
+
   sql:
     init:
       mode: never
-#      data-locations: classpath:sql/data-mysql.sql
 
   jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.MySQL8Dialect
-        show-sql: true
-        format-sql: true
-        hbm2ddl:
-          auto: create-drop
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: true
 
 logging:
   level:
     com.mey.backend: DEBUG
     org.springframework.web: DEBUG
+    org.hibernate.tool.schema.internal: TRACE

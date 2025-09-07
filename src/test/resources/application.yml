@@ -2,7 +2,7 @@ spring:
   datasource:
     url: jdbc:h2:mem:testdb
     username: sa
-    password: 
+    password:
     driver-class-name: org.h2.Driver
   
   jpa:
@@ -21,3 +21,30 @@ jwt:
   secret: testSecretKeyForJWTTokenGenerationThatIsAtLeast256BitsLongToEnsureSecurityAndValidityForHmacSha256Algorithm
   access-token-validity: 3600000
   refresh-token-validity: 604800000
+
+openai:
+  api:
+    key: ${OPENAI_API_KEY:testOpenAIApiKeyForDevelopmentAndTestingPurposesOnly}
+    url: https://api.openai.com/v1/chat/completions
+
+tmap:
+  transit:
+    base-url: https://apis.openapi.sk.com/transit
+    app-key: ${TMAP_APP_KEY:testTmapAppKeyForDevelopmentAndTestingPurposesOnly}
+    lang: 0 # 0=Korean
+    count: 1
+
+cloud:
+  aws:
+    s3:
+      bucket: mey-cd-bucket
+      path:
+        profile: profile
+        place: place
+    region:
+      static: ap-northeast-2
+    stack:
+      auto: false
+    credentials:
+      access-key: ${S3_ACCESS_KEY:testS3AccessKeyForDevelopmentAndTestingPurposesOnly}
+      secret-key: ${S3_SECRET_KEY:testS3SecretKeyForDevelopmentAndTestingPurposesOnly}

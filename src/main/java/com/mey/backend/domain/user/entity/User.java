@@ -45,21 +45,20 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    private String profileImageUrl;
+
     @Builder
-    public User(String nickname, String password, String email, Role role) {
+    public User(String nickname, String password, String email, Role role, String profileImageUrl) {
         this.nickname = nickname;
         this.password = password;
         this.email = email;
         this.role = role != null ? role : Role.USER;
+        this.profileImageUrl = profileImageUrl;
     }
 
     @Override
     public String getUsername() {
         return email;
-    }
-
-    public String getNickname() {
-        return nickname;
     }
 
     @Override

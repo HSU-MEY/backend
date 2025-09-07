@@ -22,8 +22,8 @@ public class Place extends BaseTimeEntity {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long placeId;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "region_id")
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "region_id", nullable = false)
     private Region region;
 
     @Column(nullable = false)
@@ -32,10 +32,10 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false)
     private String nameEn;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String descriptionKo;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String descriptionEn;
 
     @Column(nullable = false)
@@ -44,8 +44,10 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false)
     private Double latitude;
 
+    @Column(nullable = false)
     private String imageUrl;
 
+    @Column(nullable = false)
     private String address;
 
     private String contactInfo;
