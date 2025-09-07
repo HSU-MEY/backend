@@ -180,10 +180,10 @@ public class ChatResponseBuilder {
      */
     public String generateStepMessage(ConversationState currentState, ChatContext context) {
         return switch (currentState) {
-            case AWAITING_THEME -> "1️⃣ 테마 선택이 필요해요. K-POP, K-드라마, K-푸드, K-패션 중 어떤 테마를 원하시나요?";
-            case AWAITING_REGION -> "2️⃣ 좋습니다! " + (context.getTheme() != null ? context.getTheme().name() : "") + " 테마를 선택하셨네요. 어느 지역을 여행하고 싶으신가요?";
-            case AWAITING_DAYS -> "3️⃣ " + (context.getRegion() != null ? context.getRegion() : "") + " 지역을 선택하셨네요! 몇 일 여행을 계획하고 계신가요?";
-            case READY_FOR_ROUTE -> "✅ 모든 정보가 준비되었습니다! 맞춤 루트를 생성해드릴게요.";
+            case AWAITING_THEME -> "테마 선택이 필요해요. K-POP, K-드라마, K-푸드, K-패션 중 어떤 테마를 원하시나요?";
+            case AWAITING_REGION -> "좋습니다! " + (context.getTheme() != null ? context.getTheme().name() : "") + " 테마를 선택하셨네요. 어느 지역을 여행하고 싶으신가요?";
+            case AWAITING_DAYS -> (context.getRegion() != null ? context.getRegion() : "") + " 지역을 선택하셨네요! 몇 일 여행을 계획하고 계신가요?";
+            case READY_FOR_ROUTE -> "모든 정보가 준비되었습니다! 맞춤 루트를 생성해드릴게요.";
             default -> "안내에 따라 정보를 입력해주세요.";
         };
     }

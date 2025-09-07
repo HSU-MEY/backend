@@ -25,15 +25,69 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 public class ChatService {
-    private final ConversationManager conversationManager;
-    private final IntentClassifier intentClassifier;
-    private final ContextExtractor contextExtractor;
-    private final ChatResponseBuilder responseBuilder;
     private final RagService ragService;
     private final PlaceRepository placeRepository;
     private final RouteService routeService;
     private final RouteRepository routeRepository;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    private final ConversationManager conversationManager;
+    private final IntentClassifier intentClassifier;
+    private final ContextExtractor contextExtractor;
+    private final ChatResponseBuilder responseBuilder;
+
+    @EventListener(ApplicationReadyEvent.class)
+    @Transactional(readOnly = true)
+    public void initializeVectorStore() {
+        log.info("Initializing vector store with place data...");
+
+        // 재시도 로직으로 SQL 데이터 로딩 대기
+        int maxRetries = 5;
+        int retryCount = 0;
+        List<Place> allPlaces = null;
+
+        while (retryCount < maxRetries) {
+            try {
+                allPlaces = placeRepository.findAll();
+                if (!allPlaces.isEmpty()) {
+                    break; // 데이터가 있으면 중단
+                }
+
+                log.info("No places found, waiting for data loading... (attempt {}/{})", retryCount + 1, maxRetries);
+                Thread.sleep(1000); // 1초 대기 후 재시도
+                retryCount++;
+
+            } catch (Exception e) {
+                log.warn("Error during place data retrieval (attempt {}/{}): {}", retryCount + 1, maxRetries, e.getMessage());
+                retryCount++;
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+        }
+
+        if (allPlaces == null || allPlaces.isEmpty()) {
+            log.warn("No places data found after {} retries. Vector store will be empty.", maxRetries);
+            return;
+        }
+
+        try {
+            log.info("Found {} places to load into vector store", allPlaces.size());
+
+            for (Place place : allPlaces) {
+                String document = createDocumentFromPlace(place);
+                Map<String, Object> metadata = createMetadataFromPlace(place);
+
+                ragService.addDocument(String.valueOf(place.getPlaceId()), document, metadata);
+            }
+
+            log.info("Successfully loaded {} places into vector store", allPlaces.size());
+        } catch (Exception e) {
+            log.error("Failed to initialize vector store", e);
+        }
+    }
 
     /**
      * 사용자 쿼리를 처리하여 적절한 응답을 반환합니다.
@@ -41,24 +95,24 @@ public class ChatService {
      */
     public ChatResponse processUserQuery(ChatRequest request) {
         log.info("Processing user query: {}", request.getQuery());
-        
+
         // 1. 세션 보장 및 컨텍스트 가져오기
         ChatContext context = conversationManager.ensureSessionAndGetContext(request);
-        log.info("Current conversation state: {}, SessionId: {}", 
+        log.info("Current conversation state: {}, SessionId: {}",
                 context.getConversationState(), context.getSessionId());
-        
+
         // 2. 상태 기반 대화 처리
         if (conversationManager.requiresStatefulHandling(context)) {
             return handleStatefulConversation(request, context);
         }
-        
+
         // 3. 초기 상태 또는 상태 없음 - 의도 분류 수행
         IntentClassificationResult classificationResult = intentClassifier.classifyUserIntent(request.getQuery());
-        log.info("LLM 의도 분류 결과: {} (신뢰도: {}, 근거: {})", 
-                classificationResult.getIntent(), 
-                classificationResult.getConfidence(), 
+        log.info("LLM 의도 분류 결과: {} (신뢰도: {}, 근거: {})",
+                classificationResult.getIntent(),
+                classificationResult.getConfidence(),
                 classificationResult.getReasoning());
-        
+
         // 4. 의도별 처리
         return switch (classificationResult.getIntent()) {
             case CREATE_ROUTE -> handleCreateRouteIntent(request.toBuilder().context(context).build());
@@ -73,7 +127,7 @@ public class ChatService {
      */
     private ChatResponse handleStatefulConversation(ChatRequest request, ChatContext context) {
         log.info("Handling stateful conversation in state: {}", context.getConversationState());
-        
+
         return switch (context.getConversationState()) {
             case AWAITING_THEME -> handleThemeInput(request, context);
             case AWAITING_REGION -> handleRegionInput(request, context);
@@ -85,16 +139,16 @@ public class ChatService {
             }
         };
     }
-    
+
     /**
      * 테마 입력 처리
      */
     private ChatResponse handleThemeInput(ChatRequest request, ChatContext context) {
         log.info("Processing theme input: {}", request.getQuery());
-        
+
         // 테마 추출
         ChatContext updatedContext = contextExtractor.extractThemeFromQuery(request.getQuery(), context);
-        
+
         if (updatedContext.getTheme() == null) {
             return responseBuilder.createQuestionResponse(
                     "테마를 인식하지 못했습니다. K-POP, K-드라마, K-푸드, K-패션 중에서 선택해주세요.",
@@ -103,15 +157,15 @@ public class ChatService {
                     "어떤 테마의 루트를 찾고 계신가요?"
             );
         }
-        
+
         // 다음 단계로 이동 - 지역 질문
         ChatContext nextContext = updatedContext.toBuilder()
                 .conversationState(ConversationState.AWAITING_REGION)
                 .lastBotQuestion("어느 지역의 루트를 원하시나요? (예: 서울, 부산)")
                 .build();
-        
+
         conversationManager.saveSessionContext(nextContext.getSessionId(), nextContext);
-        
+
         return responseBuilder.createQuestionResponse(
                 "좋습니다! " + updatedContext.getTheme().name() + " 테마를 선택하셨네요. 어느 지역의 루트를 원하시나요? (예: 서울, 부산)",
                 nextContext,
@@ -119,16 +173,16 @@ public class ChatService {
                 "어느 지역의 루트를 원하시나요?"
         );
     }
-    
+
     /**
      * 지역 입력 처리
      */
     private ChatResponse handleRegionInput(ChatRequest request, ChatContext context) {
         log.info("Processing region input: {}", request.getQuery());
-        
+
         // 지역 추출
         ChatContext updatedContext = contextExtractor.extractRegionFromQuery(request.getQuery(), context);
-        
+
         if (updatedContext.getRegion() == null || updatedContext.getRegion().trim().isEmpty()) {
             return responseBuilder.createQuestionResponse(
                     "지역을 인식하지 못했습니다. 구체적인 지역명을 말씀해주세요. (예: 서울, 부산, 제주도)",
@@ -137,15 +191,15 @@ public class ChatService {
                     "어느 지역의 루트를 원하시나요?"
             );
         }
-        
+
         // 다음 단계로 이동 - 일수 질문
         ChatContext nextContext = updatedContext.toBuilder()
                 .conversationState(ConversationState.AWAITING_DAYS)
                 .lastBotQuestion("몇 일 여행을 계획하고 계신가요? (예: 1일, 2일, 3일)")
                 .build();
-        
+
         conversationManager.saveSessionContext(nextContext.getSessionId(), nextContext);
-        
+
         return responseBuilder.createQuestionResponse(
                 updatedContext.getRegion() + " 지역을 선택하셨네요! 몇 일 여행을 계획하고 계신가요? (예: 1일, 2일, 3일)",
                 nextContext,
@@ -153,16 +207,16 @@ public class ChatService {
                 "몇 일 여행을 계획하고 계신가요?"
         );
     }
-    
+
     /**
      * 일수 입력 처리
      */
     private ChatResponse handleDaysInput(ChatRequest request, ChatContext context) {
         log.info("Processing days input: {}", request.getQuery());
-        
+
         // 일수 추출
         ChatContext updatedContext = contextExtractor.extractDaysFromQuery(request.getQuery(), context);
-        
+
         if (updatedContext.getDays() == null || updatedContext.getDays() <= 0) {
             return responseBuilder.createQuestionResponse(
                     "일수를 인식하지 못했습니다. 숫자로 말씀해주세요. (예: 1일, 2일, 3일)",
@@ -171,117 +225,55 @@ public class ChatService {
                     "몇 일 여행을 계획하고 계신가요?"
             );
         }
-        
+
         // 모든 필수 정보가 수집됨 - 루트 생성
         ChatContext completeContext = updatedContext.toBuilder()
                 .conversationState(ConversationState.READY_FOR_ROUTE)
                 .lastBotQuestion(null)
                 .build();
-        
+
         conversationManager.saveSessionContext(completeContext.getSessionId(), completeContext);
-        
+
         log.info("All required info collected. Creating route for context: {}", completeContext);
-        
-        return recommendRouteWithRag(completeContext, 
-                completeContext.getDays() + "일 " + 
-                completeContext.getRegion() + " " + 
+
+        return recommendRouteWithRag(completeContext,
+                completeContext.getDays() + "일 " +
+                completeContext.getRegion() + " " +
                 completeContext.getTheme().name() + " 루트");
     }
-    
-
-    
-    
-    
-    
-
 
     private ChatResponse recommendRouteWithRag(ChatContext context, String originalQuery) {
         // 1. 일수 조정 및 컨텍스트 준비
         DaysAdjustmentResult adjustmentResult = adjustDaysIfNeeded(context);
-        
+
         // 2. 장소 검색 및 추출
         List<Long> placeIds = searchAndExtractPlaceIds(adjustmentResult.adjustedContext(), originalQuery);
         if (placeIds == null) {
             return responseBuilder.createErrorResponse("죄송합니다. 요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?", adjustmentResult.adjustedContext());
         }
-        
+
         // 3. 루트 생성 및 응답
         return createRouteAndResponse(adjustmentResult, placeIds);
     }
-    
+
     private String buildSearchQuery(ChatContext context, String originalQuery) {
         StringBuilder searchQuery = new StringBuilder(originalQuery);
-        
+
         if (context.getTheme() != null) {
             searchQuery.append(" ").append(context.getTheme().name());
         }
-        
+
         if (context.getRegion() != null) {
             searchQuery.append(" ").append(context.getRegion());
         }
-        
+
         if (context.getBudget() != null) {
             searchQuery.append(" 예산 ").append(context.getBudget()).append("원");
         }
-        
+
         return searchQuery.toString();
     }
 
-    
-    @EventListener(ApplicationReadyEvent.class)
-    @Transactional(readOnly = true)
-    public void initializeVectorStore() {
-        log.info("Initializing vector store with place data...");
-        
-        // 재시도 로직으로 SQL 데이터 로딩 대기
-        int maxRetries = 5;
-        int retryCount = 0;
-        List<Place> allPlaces = null;
-        
-        while (retryCount < maxRetries) {
-            try {
-                allPlaces = placeRepository.findAll();
-                if (!allPlaces.isEmpty()) {
-                    break; // 데이터가 있으면 중단
-                }
-                
-                log.info("No places found, waiting for data loading... (attempt {}/{})", retryCount + 1, maxRetries);
-                Thread.sleep(1000); // 1초 대기 후 재시도
-                retryCount++;
-                
-            } catch (Exception e) {
-                log.warn("Error during place data retrieval (attempt {}/{}): {}", retryCount + 1, maxRetries, e.getMessage());
-                retryCount++;
-                try {
-                    Thread.sleep(1000);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-        }
-        
-        if (allPlaces == null || allPlaces.isEmpty()) {
-            log.warn("No places data found after {} retries. Vector store will be empty.", maxRetries);
-            return;
-        }
-        
-        try {
-            log.info("Found {} places to load into vector store", allPlaces.size());
-            
-            for (Place place : allPlaces) {
-                String document = createDocumentFromPlace(place);
-                Map<String, Object> metadata = createMetadataFromPlace(place);
-                
-                ragService.addDocument(String.valueOf(place.getPlaceId()), document, metadata);
-            }
-            
-            log.info("Successfully loaded {} places into vector store", allPlaces.size());
-        } catch (Exception e) {
-            log.error("Failed to initialize vector store", e);
-        }
-    }
-    
     private String createDocumentFromPlace(Place place) {
         StringBuilder document = new StringBuilder();
         document.append("장소명: ").append(place.getNameKo()).append("\n");
@@ -310,8 +302,7 @@ public class ChatService {
         metadata.put("longitude", place.getLongitude());
         return metadata;
     }
-    
-    
+
     private int getAvailablePlacesCount(ChatContext context) {
         if (context.getTheme() == null || context.getRegion() == null) {
             return 0;
@@ -320,7 +311,7 @@ public class ChatService {
         String themeJson = "\"" + context.getTheme().name().toLowerCase().replace("_", "-") + "\"";
         return placeRepository.countByThemeAndRegion(themeJson, context.getRegion());
     }
-    
+
     private record DaysAdjustmentResult(ChatContext adjustedContext, String adjustmentMessage) {}
     
     private DaysAdjustmentResult adjustDaysIfNeeded(ChatContext context) {
@@ -394,9 +385,6 @@ public class ChatService {
             return responseBuilder.createErrorResponse("루트 생성 중 오류가 발생했습니다. 다시 시도해주시겠어요?", adjustmentResult.adjustedContext());
         }
     }
-    
-    
-    
     
     /**
      * 새 루트 생성 의도를 처리합니다.
@@ -483,8 +471,7 @@ public class ChatService {
         
         return responseBuilder.createGeneralInfoResponse(answer, extractedContext);
     }
-    
-    
+
     /**
      * 컨텍스트와 쿼리를 기반으로 기존 루트를 검색합니다.
      */
