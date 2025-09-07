@@ -16,5 +16,8 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     List<Place> findByThemeKeywordWithLimit(@Param("themeJson") String themeJson, @Param("limit") int limit);
 
     Optional<Place> findByNameKo(String nameKo);
+    
+    @Query(value = "SELECT COUNT(*) FROM places p JOIN regions r ON p.region_id = r.region_id WHERE JSON_CONTAINS(p.themes, :themeJson) AND r.name_ko = :regionName", nativeQuery = true)
+    int countByThemeAndRegion(@Param("themeJson") String themeJson, @Param("regionName") String regionName);
 }
 

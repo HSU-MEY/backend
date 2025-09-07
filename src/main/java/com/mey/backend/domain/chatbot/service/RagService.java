@@ -4,6 +4,7 @@ import com.mey.backend.domain.chatbot.dto.DocumentSearchResult;
 import com.mey.backend.domain.chatbot.exception.DocumentProcessingException;
 import com.mey.backend.domain.chatbot.repository.InMemoryDocumentVectorStore;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -28,33 +29,6 @@ import org.springframework.stereotype.Service;
 public class RagService {
     private final InMemoryDocumentVectorStore vectorStore;
     private final OpenAiApi openAiApi;
-
-    /**
-     * json 파일을 업로드하여 벡터 스토어에 추가합니다.
-     *
-     * @param file PDF 파일
-     * @param originalFilename 원본 파일명
-     * @return 생성된 문서 ID
-     */
-    public String uploadJsonFile(File file, String originalFilename) {
-        String documentId = UUID.randomUUID().toString();
-        log.info("PDF 문서 업로드 시작. 파일: {}, ID: {}", originalFilename, documentId);
-
-        // 메타데이터 준비
-        Map<String, Object> docMetadata = new HashMap<>();
-        docMetadata.put("originalFilename", originalFilename != null ? originalFilename : "");
-        docMetadata.put("uploadTime", System.currentTimeMillis());
-
-        // 벡터 스토어에 문서 추가
-        try {
-            vectorStore.addDocumentFile(documentId, file, docMetadata);
-            log.info("PDF 문서 업로드 완료. ID: {}", documentId);
-            return documentId;
-        } catch (Exception e) {
-            log.error("문서 처리 중 오류 발생: {}", e.getMessage(), e);
-            throw new DocumentProcessingException();
-        }
-    }
 
     /**
      * 질의와 관련된 문서를 검색합니다.
@@ -211,6 +185,54 @@ public class RagService {
                 .build();
 
         return chatModel.call(prompt);
+    }
+    
+    /**
+     * 벡터 스토어에 문서를 직접 추가합니다.
+     *
+     * @param id 문서 ID
+     * @param content 문서 내용
+     * @param metadata 메타데이터
+     */
+    public void addDocument(String id, String content, Map<String, Object> metadata) {
+        vectorStore.addDocument(id, content, metadata);
+    }
+    
+    /**
+     * 장소 검색을 위한 특화된 검색 메서드
+     *
+     * @param searchQuery 검색 쿼리
+     * @param maxResults 최대 결과 수
+     * @return Place ID 리스트
+     */
+    public List<Long> searchPlaceIds(String searchQuery, int maxResults) {
+        log.debug("장소 ID 검색 시작: '{}', 최대 결과: {}", searchQuery, maxResults);
+        
+        List<DocumentSearchResult> results = retrieve(searchQuery, maxResults);
+        List<Long> placeIds = new ArrayList<>();
+        
+        for (DocumentSearchResult result : results) {
+            if (placeIds.size() >= maxResults) {
+                break;
+            }
+            
+            Map<String, Object> metadata = result.getMetadata();
+            if (metadata != null && metadata.containsKey("placeId")) {
+                Object placeIdObj = metadata.get("placeId");
+                if (placeIdObj instanceof Number) {
+                    placeIds.add(((Number) placeIdObj).longValue());
+                } else if (placeIdObj instanceof String) {
+                    try {
+                        placeIds.add(Long.parseLong((String) placeIdObj));
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid placeId format in metadata: {}", placeIdObj);
+                    }
+                }
+            }
+        }
+        
+        log.info("장소 ID 검색 완료: {} 개 추출", placeIds.size());
+        return placeIds;
     }
 
 }

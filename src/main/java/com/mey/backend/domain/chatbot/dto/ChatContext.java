@@ -7,7 +7,6 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
 
 @Schema(description = "챗봇 컨텍스트 정보")
 @Getter
@@ -17,7 +16,7 @@ import java.util.List;
 public class ChatContext {
     
     @Schema(description = "테마 정보", example = "KPOP")
-    private List<Theme> themes;
+    private Theme theme;
     
     @Schema(description = "지역", example = "서울")
     private String region;
@@ -30,4 +29,7 @@ public class ChatContext {
     
     @Schema(description = "소요 시간 (분)", example = "240")
     private Integer durationMinutes;
+    
+    @Schema(description = "여행 일수", example = "2")
+    private Integer days;
 }
