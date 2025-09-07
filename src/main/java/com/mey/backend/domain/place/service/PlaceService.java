@@ -56,15 +56,12 @@ public class PlaceService {
     }
 
     public List<PlaceThemeResponseDto> getPlacesByTheme(String keyword, int limit) {
-        String jsonKeyword = "[\"" + keyword.toLowerCase() + "\"]";
-        List<Place> places = placeRepository.findByThemeKeywordWithLimit(jsonKeyword, limit);
+        // DB 저장 형식에 맞추어 정규화 (예: 전부 대문자 + 언더스코어)
+        String norm = keyword.toUpperCase(); // "K_POP", "K_DRAMA" 등
 
-        if (places.isEmpty()) {
-            throw new PlaceException(ErrorStatus.PLACE_NOT_FOUND);
-        }
+        List<Place> places = placeRepository.findByThemeKeywordWithLimit(norm, limit);
+        if (places.isEmpty()) throw new PlaceException(ErrorStatus.PLACE_NOT_FOUND);
 
-        return places.stream()
-                .map(PlaceThemeResponseDto::new)
-                .collect(Collectors.toList());
+        return places.stream().map(PlaceThemeResponseDto::new).collect(Collectors.toList());
     }
 }

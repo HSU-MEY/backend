@@ -13,10 +13,8 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
 
     List<Place> findByNameKoContainingIgnoreCaseOrNameEnContainingIgnoreCase(String nameKo, String nameEn);
 
-    @Query(value = "SELECT * FROM places WHERE JSON_CONTAINS(themes, :themeJson) LIMIT :limit", nativeQuery = true)
-    List<Place> findByThemeKeywordWithLimit(@Param("themeJson") String themeJson, @Param("limit") int limit);
-
-    Optional<Place> findByNameKo(String nameKo);
+    @Query(value = "SELECT * FROM places WHERE JSON_CONTAINS(themes, JSON_QUOTE(:keyword), '$') LIMIT :limit", nativeQuery = true)
+    List<Place> findByThemeKeywordWithLimit(@Param("keyword") String keyword, @Param("limit") int limit);
 
     // JPQL의 MOD 함수로 홀수 placeId만 필터링
     @Query("SELECT p FROM Place p WHERE MOD(p.placeId, 2) = 1")
