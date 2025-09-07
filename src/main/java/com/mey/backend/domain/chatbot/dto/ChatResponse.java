@@ -26,6 +26,9 @@ public class ChatResponse {
     @Schema(description = "장소 정보 목록 (PLACE_INFO일 때만 포함)")
     private java.util.List<PlaceInfo> places;
     
+    @Schema(description = "업데이트된 대화 컨텍스트 (다음 대화에서 사용)")
+    private ChatContext context;
+    
     public enum ResponseType {
         QUESTION,            // 추가 정보가 필요한 경우
         ROUTE_RECOMMENDATION, // 새 루트 생성/추천 완료

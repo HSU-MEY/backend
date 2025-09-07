@@ -133,7 +133,7 @@ public class ChatService {
         // 2. 장소 검색 및 추출
         List<Long> placeIds = searchAndExtractPlaceIds(adjustmentResult.adjustedContext(), originalQuery);
         if (placeIds == null) {
-            return createErrorResponse("죄송합니다. 요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?");
+            return createErrorResponse("죄송합니다. 요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?", adjustmentResult.adjustedContext());
         }
         
         // 3. 루트 생성 및 응답
@@ -306,18 +306,20 @@ public class ChatService {
                             .estimatedCost((int) routeResponse.getTotalCost())
                             .durationMinutes(routeResponse.getTotalDurationMinutes())
                             .build())
+                    .context(adjustmentResult.adjustedContext())
                     .build();
                     
         } catch (Exception e) {
             log.error("루트 생성 중 오류 발생", e);
-            return createErrorResponse("루트 생성 중 오류가 발생했습니다. 다시 시도해주시겠어요?");
+            return createErrorResponse("루트 생성 중 오류가 발생했습니다. 다시 시도해주시겠어요?", adjustmentResult.adjustedContext());
         }
     }
     
-    private ChatResponse createErrorResponse(String message) {
+    private ChatResponse createErrorResponse(String message, ChatContext context) {
         return ChatResponse.builder()
                 .responseType(ChatResponse.ResponseType.QUESTION)
                 .message(message)
+                .context(context)
                 .build();
     }
     
@@ -431,7 +433,7 @@ public class ChatService {
         // 2. 필수 정보 확인
         String missingInfo = checkMissingRequiredInfo(extractedContext);
         if (missingInfo != null) {
-            return createQuestionResponse(missingInfo);
+            return createQuestionResponse(missingInfo, extractedContext);
         }
         
         // 3. RAG를 통한 루트 생성
@@ -450,7 +452,7 @@ public class ChatService {
         List<com.mey.backend.domain.route.entity.Route> routes = searchExistingRoutes(extractedContext, request.getQuery());
         
         if (routes.isEmpty()) {
-            return createQuestionResponse("요청하신 조건에 맞는 기존 루트를 찾을 수 없습니다. 새로운 루트를 만들어드릴까요?");
+            return createQuestionResponse("요청하신 조건에 맞는 기존 루트를 찾을 수 없습니다. 새로운 루트를 만들어드릴까요?", extractedContext);
         }
         
         // 3. RAG를 통한 자연스러운 추천 메시지 생성
@@ -467,6 +469,7 @@ public class ChatService {
                 .responseType(ChatResponse.ResponseType.EXISTING_ROUTES)
                 .message(recommendationMessage)
                 .existingRoutes(existingRoutes)
+                .context(extractedContext)
                 .build();
     }
     
@@ -474,10 +477,13 @@ public class ChatService {
      * 장소 검색 의도를 처리합니다.
      */
     private ChatResponse handleSearchPlacesIntent(ChatRequest request) {
+        // 컨텍스트 추출 (장소 검색에도 컨텍스트 활용 가능)
+        ChatContext extractedContext = extractContextFromQuery(request.getQuery(), request.getContext());
+        
         List<Long> placeIds = ragService.searchPlaceIds(request.getQuery(), 5);
         
         if (placeIds.isEmpty()) {
-            return createQuestionResponse("요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 키워드로 검색해보시겠어요?");
+            return createQuestionResponse("요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 키워드로 검색해보시겠어요?", extractedContext);
         }
         
         List<Place> places = placeRepository.findAllById(placeIds);
@@ -496,6 +502,7 @@ public class ChatService {
                 .responseType(ChatResponse.ResponseType.PLACE_INFO)
                 .message("검색하신 조건에 맞는 장소들을 찾았습니다:")
                 .places(placeInfos)
+                .context(extractedContext)
                 .build();
     }
     
@@ -503,6 +510,9 @@ public class ChatService {
      * 일반 질문 의도를 처리합니다.
      */
     private ChatResponse handleGeneralQuestionIntent(ChatRequest request) {
+        // 일반 질문에서도 컨텍스트 추출 (필요시 활용 가능)
+        ChatContext extractedContext = extractContextFromQuery(request.getQuery(), request.getContext());
+        
         // RAG를 사용하여 일반적인 질문에 답변
         List<DocumentSearchResult> relevantDocs = ragService.retrieve(request.getQuery(), 3);
         String answer = ragService.generateAnswerWithContexts(request.getQuery(), relevantDocs);
@@ -510,16 +520,18 @@ public class ChatService {
         return ChatResponse.builder()
                 .responseType(ChatResponse.ResponseType.GENERAL_INFO)
                 .message(answer)
+                .context(extractedContext)
                 .build();
     }
     
     /**
      * 질문 응답을 생성하는 헬퍼 메서드
      */
-    private ChatResponse createQuestionResponse(String message) {
+    private ChatResponse createQuestionResponse(String message, ChatContext context) {
         return ChatResponse.builder()
                 .responseType(ChatResponse.ResponseType.QUESTION)
                 .message(message)
+                .context(context)
                 .build();
     }
     
