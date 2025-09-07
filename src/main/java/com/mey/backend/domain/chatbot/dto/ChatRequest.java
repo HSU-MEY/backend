@@ -9,7 +9,7 @@ import lombok.NoArgsConstructor;
 
 @Schema(description = "채팅 요청 DTO")
 @Getter
-@Builder
+@Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatRequest {
