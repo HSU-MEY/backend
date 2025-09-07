@@ -29,8 +29,6 @@ import org.springframework.transaction.annotation.Transactional;
 public class RouteService {
 
     private static final LocalTime DEFAULT_START_TIME = LocalTime.of(10, 0);
-    private static final int MIN_POPULARITY_SCORE = 10;
-    private static final int COST_DIVISOR = 1000;
 
     private final RouteRepository routeRepository;
     private final RoutePlaceRepository routePlaceRepository;
@@ -221,32 +219,33 @@ public class RouteService {
     private record Totals(int totalDurationSec, int totalDistanceMeters, int totalFare) {
     }
 
-    public RouteRecommendListResponseDto getRecommendedRoutes(List<Theme> themes, String region, int limit, int offset) {
-        String themeJson = null;
-        if (themes != null && !themes.isEmpty()) {
-            List<String> themeNames = themes.stream().map(Theme::name).toList();
-            themeJson = "[" + themeNames.stream()
-                    .map(name -> "\"" + name + "\"")
-                    .reduce((a, b) -> a + "," + b)
-                    .orElse("") + "]";
-        }
-        List<Route> allRoutes = routeRepository.findByThemesAndRegion(themeJson, region);
+    public RouteRecommendListResponseDto getRecommendedRoutes(List<Theme> themes, int limit, int offset) {
+        List<Route> allRoutes;
 
-        // 수동으로 페이지네이션 적용
+        if (themes != null && !themes.isEmpty()) {
+            // themes를 JSON 배열 문자열로 변환
+            String themesJson = themes.stream()
+                    .map(t -> "\"" + t.name() + "\"") // "FOOD", "CAFE" 이런 식으로
+                    .collect(Collectors.joining(",", "[", "]"));
+
+            allRoutes = routeRepository.findPopularByThemes(themesJson);
+        } else {
+            allRoutes = routeRepository.findByRouteType(RouteType.POPULAR);
+        }
+
+        // 전체 개수
         int totalCount = allRoutes.size();
+
+        // 수동 페이지네이션
         List<Route> paginatedRoutes = allRoutes.stream()
                 .skip(offset)
                 .limit(limit)
                 .toList();
 
+        // DTO 변환
         List<RouteRecommendResponseDto> routes = paginatedRoutes.stream()
                 .map(this::convertToRouteRecommendDto)
                 .toList();
-
-        if (routes.isEmpty()) {
-            routes = createMockRouteRecommendData();
-            totalCount = routes.size();
-        }
 
         return RouteRecommendListResponseDto.builder()
                 .routes(routes)
@@ -256,50 +255,17 @@ public class RouteService {
 
     private RouteRecommendResponseDto convertToRouteRecommendDto(Route route) {
         return RouteRecommendResponseDto.builder()
-                .routeId(route.getId())
-                .title(route.getTitleKo())
-                .description(route.getDescriptionKo())
-                .theme(route.getThemes().isEmpty() ? "" : route.getThemes().get(0).name())
-                .totalDistanceKm(BigDecimal.valueOf(route.getTotalDistance()))
-                .totalDurationMinutes(route.getTotalDurationMinutes())
-                .estimatedCost((int) route.getTotalCost())
-                .thumbnailUrl(route.getImageUrl())
-                .popularityScore(calculatePopularityScore(route))
-                .availableTimes(getAvailableTimes())
+                .id(route.getId())
+                .imageUrl(route.getImageUrl())
+                .titleKo(route.getTitleKo())
+                .titleEn(route.getTitleEn())
+                .regionNameKo(route.getRegion() != null ? route.getRegion().getNameKo() : null)
+                .regionNameEn(route.getRegion() != null ? route.getRegion().getNameEn() : null)
+                .descriptionKo(route.getDescriptionKo())
+                .descriptionEn(route.getDescriptionEn())
+                .themes(route.getThemes())
                 .build();
-    }
 
-    private List<RouteRecommendResponseDto> createMockRouteRecommendData() {
-        return Arrays.asList(
-                RouteRecommendResponseDto.builder()
-                        .routeId(1L)
-                        .title("서울 명동 쇼핑 투어")
-                        .description("명동의 주요 쇼핑 명소를 둘러보는 루트")
-                        .theme("쇼핑")
-                        .totalDistanceKm(new BigDecimal("3.5"))
-                        .totalDurationMinutes(240)
-                        .estimatedCost(50000)
-                        .thumbnailUrl("https://example.com/thumb1.jpg")
-                        .popularityScore(85)
-                        .availableTimes(getAvailableTimes())
-                        .build(),
-                RouteRecommendResponseDto.builder()
-                        .routeId(2L)
-                        .title("강남 카페 투어")
-                        .description("강남의 유명 카페들을 체험하는 루트")
-                        .theme("음식")
-                        .totalDistanceKm(new BigDecimal("2.8"))
-                        .totalDurationMinutes(180)
-                        .estimatedCost(30000)
-                        .thumbnailUrl("https://example.com/thumb2.jpg")
-                        .popularityScore(78)
-                        .availableTimes(getAvailableTimes())
-                        .build()
-        );
-    }
-
-    private Integer calculatePopularityScore(Route route) {
-        return Math.max(100 - (route.getTotalCost() / COST_DIVISOR), MIN_POPULARITY_SCORE);
     }
 
     private List<LocalTime> getAvailableTimes() {
