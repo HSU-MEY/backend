@@ -42,8 +42,9 @@ public class PlaceController {
             description = "인기 장소 리스트를 조회한 결과를 반환합니다."
     )
     @GetMapping("/popular")
-    public List<PlaceResponseDto> getPopularPlaces() {
-        return placeService.getPopularPlaces2();
+    public List<PlaceResponseDto> getPopularPlaces(
+            @RequestParam(defaultValue = "10") int limit) {
+        return placeService.getPopularPlaces(limit);
     }
 
     @Operation(
