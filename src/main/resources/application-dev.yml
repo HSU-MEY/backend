@@ -13,13 +13,17 @@ spring:
     hibernate:
       ddl-auto: create-drop
     show-sql: true
+    defer-datasource-initialization: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.MySQLDialect
         format_sql: true
+        hbm2ddl:
+          import_files: sql/data-mysql.sql
 
 logging:
   level:
     com.mey.backend: DEBUG
     org.springframework.web: DEBUG
-    org.hibernate.tool.schema.internal: TRACE
+    org.hibernate.tool.schema.internal: warn
+    org.hibernate.sql: warn
