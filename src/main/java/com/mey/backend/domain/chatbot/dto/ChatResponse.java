@@ -1,5 +1,6 @@
 package com.mey.backend.domain.chatbot.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,6 +10,7 @@ import lombok.Getter;
 @Getter
 @Builder
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ChatResponse {
     
     @Schema(description = "응답 타입", example = "QUESTION")
