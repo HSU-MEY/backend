@@ -1,5 +1,6 @@
 package com.mey.backend.domain.chatbot.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.mey.backend.domain.route.entity.Theme;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -13,6 +14,7 @@ import lombok.NoArgsConstructor;
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ChatContext {
     
     @Schema(description = "테마 정보", example = "KPOP")

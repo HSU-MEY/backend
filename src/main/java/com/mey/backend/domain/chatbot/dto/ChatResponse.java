@@ -19,7 +19,7 @@ public class ChatResponse {
     @Schema(description = "응답 메시지", example = "어느 지역의 루트를 찾고 계신가요?")
     private String message;
     
-    @Schema(description = "루트 추천 정보 (ROUTE_RECOMMENDATION/EXISTING_ROUTES일 때만 포함)")
+    @Schema(description = "루트 추천 정보 (ROUTE_RECOMMENDATION일 때만 포함)")
     private RouteRecommendation routeRecommendation;
     
     @Schema(description = "기존 루트 목록 (EXISTING_ROUTES일 때만 포함)")

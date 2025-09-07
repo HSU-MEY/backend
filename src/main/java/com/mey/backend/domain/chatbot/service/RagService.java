@@ -235,4 +235,81 @@ public class RagService {
         return placeIds;
     }
 
+    /**
+     * 실제 루트의 장소들을 기반으로 자연스러운 루트 추천 메시지를 생성합니다.
+     *
+     * @param question 사용자 질문
+     * @param places 실제 루트에 포함된 장소들
+     * @return 모든 장소를 반영한 루트 추천 응답
+     */
+    public String generateRouteRecommendationAnswerWithPlaces(String question, java.util.List<com.mey.backend.domain.place.entity.Place> places) {
+        log.debug("루트 추천 응답 생성 시작 (장소 기반): '{}', 장소 수: {}", question, places.size());
+
+        if (places.isEmpty()) {
+            log.info("장소 정보 없음: '{}'", question);
+            return "죄송합니다. 요청하신 조건에 맞는 루트 정보를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?";
+        }
+
+        // 장소 정보를 순서대로 정렬하고 컨텍스트 생성
+        String context = places.stream()
+                .map(place -> String.format("""
+                        장소명: %s
+                        설명: %s
+                        주소: %s
+                        지역: %s
+                        테마: %s
+                        비용정보: %s
+                        연락처: %s
+                        """,
+                        place.getNameKo(),
+                        place.getDescriptionKo(),
+                        place.getAddress(),
+                        place.getRegion().getNameKo(),
+                        String.join(", ", place.getThemes()),
+                        place.getCostInfo(),
+                        place.getContactInfo() != null ? place.getContactInfo() : "정보 없음"
+                ))
+                .collect(java.util.stream.Collectors.joining("\n"));
+        
+        // 장소 이름 리스트 생성 (순서대로)
+        String placeNames = places.stream()
+                .map(place -> "**" + place.getNameKo() + "**")
+                .collect(java.util.stream.Collectors.joining(", "));
+        
+        log.debug("컨텍스트 크기: {} 문자, 장소 수: {}", context.length(), places.size());
+
+        // 루트 추천에 특화된 시스템 프롬프트 생성
+        String systemPromptText = String.format("""
+            당신은 친근하고 전문적인 한류 여행 가이드입니다.
+            사용자의 질문에 대해 주어진 루트 정보를 바탕으로 자연스럽고 매력적인 추천을 해주세요.
+
+            ⚠️ 중요한 원칙을 반드시 따라주세요:
+            1. 제공된 모든 장소를 반드시 언급해야 합니다: %s
+            2. 장소들을 제공된 순서대로 소개해주세요 (이것이 최적화된 방문 순서입니다)
+            3. 여행 일수에 맞게 장소들을 균등하게 배분하여 일차별로 구성해주세요
+            4. 각 장소의 특징과 매력을 간략하게 설명해주세요
+            5. 정보 출처나 참고 번호는 절대 언급하지 마세요
+            6. 자연스럽고 친근한 톤으로 작성해주세요
+
+            루트 정보:
+            %s
+            """, placeNames, context);
+
+        // LLM을 통한 응답 생성
+        try {
+            ChatResponse response = callOpenAi(question, systemPromptText);
+            log.debug("AI 응답 생성: {}", response);
+            String aiAnswer = (response != null && response.getResult() != null &&
+                    response.getResult().getOutput() != null)
+                    ? response.getResult().getOutput().getText()
+                    : "루트 추천 정보를 생성할 수 없습니다.";
+
+            return aiAnswer.trim();
+
+        } catch (Exception e) {
+            log.error("AI 응답 생성 중 오류 발생", e);
+            return "루트 추천 정보를 생성하는 중에 오류가 발생했습니다. 다시 시도해주시겠어요?";
+        }
+    }
+
 }

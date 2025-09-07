@@ -78,26 +78,6 @@ public class ConversationManager {
     }
     
     /**
-     * 세션 컨텍스트를 가져옵니다.
-     */
-    public ChatContext getSessionContext(String sessionId) {
-        if (sessionId == null) {
-            return null;
-        }
-        return sessionContextMap.get(sessionId);
-    }
-    
-    /**
-     * 세션을 삭제합니다.
-     */
-    public void removeSession(String sessionId) {
-        if (sessionId != null) {
-            sessionContextMap.remove(sessionId);
-            log.info("Removed session: {}", sessionId);
-        }
-    }
-    
-    /**
      * 대화 상태가 상태 기반 처리가 필요한지 확인합니다.
      */
     public boolean requiresStatefulHandling(ChatContext context) {

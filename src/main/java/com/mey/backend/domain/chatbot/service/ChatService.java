@@ -231,16 +231,25 @@ public class ChatService {
     }
 
     private ChatResponse recommendRouteWithRag(ChatContext context, String originalQuery) {
-        // 1. 일수 조정 및 컨텍스트 준비
-        DaysAdjustmentResult adjustmentResult = adjustDaysIfNeeded(context);
-
-        // 2. 장소 검색 및 추출
-        List<Long> placeIds = searchAndExtractPlaceIds(adjustmentResult.adjustedContext(), originalQuery);
-        if (placeIds == null) {
-            return responseBuilder.createErrorResponse("죄송합니다. 요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?", adjustmentResult.adjustedContext());
+        // 1. 장소 검색 먼저 수행
+        String searchQuery = buildSearchQuery(context, originalQuery);
+        int placesNeeded = context.getDays() * 4;
+        
+        List<Long> placeIds = ragService.searchPlaceIds(searchQuery, placesNeeded);
+        if (placeIds.isEmpty()) {
+            return responseBuilder.createErrorResponse("죄송합니다. 요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?", context);
         }
 
-        // 3. 루트 생성 및 응답
+        // 2. 실제 검색된 장소 수를 기반으로 일수 조정
+        DaysAdjustmentResult adjustmentResult = adjustDaysBasedOnFoundPlaces(context, placeIds.size());
+
+        // 3. 필요한 만큼 장소 ID 제한
+        int actualPlacesNeeded = adjustmentResult.adjustedContext().getDays() * 4;
+        if (placeIds.size() > actualPlacesNeeded) {
+            placeIds = placeIds.subList(0, actualPlacesNeeded);
+        }
+
+        // 4. 루트 생성 및 응답
         return createRouteAndResponse(adjustmentResult, placeIds);
     }
 
@@ -296,21 +305,23 @@ public class ChatService {
             return 0;
         }
         
-        String themeJson = "\"" + context.getTheme().name().toLowerCase().replace("_", "-") + "\"";
-        return placeRepository.countByThemeAndRegion(themeJson, context.getRegion());
+        String themeJson = "\"" + context.getTheme().name() + "\"";
+        log.debug("장소 개수 조회 - 테마: {}, 지역: {}, themeJson: {}", context.getTheme(), context.getRegion(), themeJson);
+        int count = placeRepository.countByThemeAndRegion(themeJson, context.getRegion());
+        log.debug("장소 개수 조회 결과: {}", count);
+        return count;
     }
 
     private record DaysAdjustmentResult(ChatContext adjustedContext, String adjustmentMessage) {}
     
-    private DaysAdjustmentResult adjustDaysIfNeeded(ChatContext context) {
-        int availablePlaces = getAvailablePlacesCount(context);
+    private DaysAdjustmentResult adjustDaysBasedOnFoundPlaces(ChatContext context, int foundPlacesCount) {
         int requestedPlaces = context.getDays() * 4;
         
-        if (requestedPlaces <= availablePlaces) {
+        if (requestedPlaces <= foundPlacesCount) {
             return new DaysAdjustmentResult(context, "");
         }
         
-        int maxDays = Math.max(1, availablePlaces / 4);
+        int maxDays = Math.max(1, foundPlacesCount / 4);
         ChatContext adjustedContext = ChatContext.builder()
                 .theme(context.getTheme())
                 .region(context.getRegion())
@@ -318,22 +329,19 @@ public class ChatService {
                 .preferences(context.getPreferences())
                 .durationMinutes(context.getDurationMinutes())
                 .days(maxDays)
+                .conversationState(context.getConversationState())
+                .lastBotQuestion(context.getLastBotQuestion())
+                .sessionId(context.getSessionId())
+                .conversationStartTime(context.getConversationStartTime())
                 .build();
         
         String adjustmentMessage = String.format("요청하신 %d일 여행에는 %d개의 장소가 필요하지만, %s 지역의 %s 테마 장소는 총 %d개만 있어서 %d일 여행으로 조정했습니다.\n\n", 
                 context.getDays(), requestedPlaces, context.getRegion(), 
-                context.getTheme().name(), availablePlaces, maxDays);
+                context.getTheme().name(), foundPlacesCount, maxDays);
         
         return new DaysAdjustmentResult(adjustedContext, adjustmentMessage);
     }
     
-    private List<Long> searchAndExtractPlaceIds(ChatContext context, String originalQuery) {
-        String searchQuery = buildSearchQuery(context, originalQuery);
-        int placesNeeded = context.getDays() * 4;
-        
-        List<Long> placeIds = ragService.searchPlaceIds(searchQuery, placesNeeded);
-        return placeIds.size() >= placesNeeded ? placeIds : null;
-    }
     
     private ChatResponse createRouteAndResponse(DaysAdjustmentResult adjustmentResult, List<Long> placeIds) {
         try {
@@ -343,30 +351,32 @@ public class ChatService {
             
             RouteCreateResponseDto routeResponse = routeService.createRouteByAI(routeRequest);
             
-            // RAG를 통해 생성된 루트에 대한 자연스러운 추천 메시지 생성
-            String searchQuery = buildSearchQuery(adjustmentResult.adjustedContext(), "루트 추천");
-            List<DocumentSearchResult> relevantDocs = ragService.retrieve(searchQuery, 3);
-            String aiGeneratedMessage = ragService.generateRouteRecommendationAnswer(
+            // 실제 생성된 루트의 장소 정보를 기반으로 자연스러운 추천 메시지 생성
+            List<Place> routePlaces = placeRepository.findAllById(placeIds);
+            String aiGeneratedMessage = ragService.generateRouteRecommendationAnswerWithPlaces(
                     adjustmentResult.adjustedContext().getDays() + "일 " + 
-                    adjustmentResult.adjustedContext().getTheme().name() + " 테마 루트", 
-                    relevantDocs
+                    adjustmentResult.adjustedContext().getTheme().name() + " 테마 루트",
+                    routePlaces
             );
             
             String finalMessage = adjustmentResult.adjustmentMessage() + aiGeneratedMessage;
             
-            return ChatResponse.builder()
-                    .responseType(ChatResponse.ResponseType.ROUTE_RECOMMENDATION)
-                    .message(finalMessage)
-                    .routeRecommendation(ChatResponse.RouteRecommendation.builder()
-                            .routeId(routeResponse.getRouteId())
-                            .endpoint("/api/routes/" + routeResponse.getRouteId())
-                            .title(routeResponse.getTitleKo())
-                            .description(routeResponse.getDescriptionKo())
-                            .estimatedCost((int) routeResponse.getTotalCost())
-                            .durationMinutes(routeResponse.getTotalDurationMinutes())
-                            .build())
-                    .context(adjustmentResult.adjustedContext())
-                    .build();
+            // 더 의미있는 제목과 설명 생성
+            ChatContext context = adjustmentResult.adjustedContext();
+            String customTitle = String.format("%s %s %d일 루트", 
+                    context.getRegion(), 
+                    context.getTheme().name().replace("_", "-"), 
+                    context.getDays());
+            
+            return responseBuilder.createAIRouteRecommendationResponse(
+                    finalMessage,
+                    routeResponse.getRouteId(),
+                    customTitle,
+                    routeResponse.getDescriptionKo(),
+                    (int) routeResponse.getTotalCost(),
+                    routeResponse.getTotalDurationMinutes(),
+                    adjustmentResult.adjustedContext()
+            );
                     
         } catch (Exception e) {
             log.error("루트 생성 중 오류 발생", e);

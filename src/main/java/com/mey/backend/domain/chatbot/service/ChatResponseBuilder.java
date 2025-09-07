@@ -139,6 +139,28 @@ public class ChatResponseBuilder {
     }
     
     /**
+     * AI가 생성한 루트 추천 응답을 생성합니다.
+     */
+    public ChatResponse createAIRouteRecommendationResponse(String message, 
+                                                          Long routeId,
+                                                          String title,
+                                                          String description,
+                                                          Integer estimatedCost,
+                                                          Integer durationMinutes,
+                                                          ChatContext context) {
+        ChatResponse.RouteRecommendation routeRecommendation = ChatResponse.RouteRecommendation.builder()
+                .routeId(routeId)
+                .endpoint("/api/routes/" + routeId)
+                .title(title)
+                .description(description)
+                .estimatedCost(estimatedCost)
+                .durationMinutes(durationMinutes)
+                .build();
+                
+        return createRouteRecommendationResponse(message, routeRecommendation, context);
+    }
+    
+    /**
      * Route 엔티티를 ExistingRoute DTO로 변환
      */
     private ChatResponse.ExistingRoute convertRouteToExistingRoute(com.mey.backend.domain.route.entity.Route route) {
