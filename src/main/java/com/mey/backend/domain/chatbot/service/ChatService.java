@@ -351,8 +351,18 @@ public class ChatService {
             
             RouteCreateResponseDto routeResponse = routeService.createRouteByAI(routeRequest);
             
-            // 실제 생성된 루트의 장소 정보를 기반으로 자연스러운 추천 메시지 생성
-            List<Place> routePlaces = placeRepository.findAllById(placeIds);
+            // 실제 생성된 루트의 장소 정보를 순서대로 정렬하여 AI 메시지 생성
+            List<Place> allPlaces = placeRepository.findAllById(placeIds);
+            
+            // placeIds의 순서대로 Place 객체들을 정렬
+            List<Place> routePlaces = placeIds.stream()
+                    .map(id -> allPlaces.stream()
+                            .filter(place -> place.getPlaceId().equals(id))
+                            .findFirst()
+                            .orElse(null))
+                    .filter(java.util.Objects::nonNull)
+                    .collect(java.util.stream.Collectors.toList());
+                    
             String aiGeneratedMessage = ragService.generateRouteRecommendationAnswerWithPlaces(
                     adjustmentResult.adjustedContext().getDays() + "일 " + 
                     adjustmentResult.adjustedContext().getTheme().name() + " 테마 루트",
