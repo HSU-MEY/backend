@@ -6,11 +6,14 @@ import com.mey.backend.domain.place.dto.PlaceThemeResponseDto;
 import com.mey.backend.domain.place.entity.Place;
 import com.mey.backend.domain.place.repository.PlaceRepository;
 import com.mey.backend.domain.place.repository.UserLikePlaceRepository;
-import com.mey.backend.domain.region.entity.Region;
 import com.mey.backend.global.exception.PlaceException;
 import com.mey.backend.global.payload.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -37,86 +40,20 @@ public class PlaceService {
         return new PlaceResponseDto(place);
     }
 
-    public List<PlaceResponseDto> getPopularPlaces() {
-        List<Place> places = userLikePlaceRepository.findPopularPlaces();
-        if (places.isEmpty()) {
-            throw new PlaceException(ErrorStatus.PLACE_NOT_FOUND);
-        }
+    @Transactional(readOnly = true)
+    public List<PlaceResponseDto> getPopularPlaces(Integer limit) {
+        int n = (limit == null || limit <= 0) ? 10 : limit;
 
+        // placeId 오름차순으로 홀수 ID만 2n개 정도 가져오기
+        Pageable pageable = PageRequest.of(0, 2 * n, Sort.by(Sort.Direction.ASC, "placeId"));
+        List<Place> places = placeRepository.findOddIdPlaces(pageable);
+
+        // 최종 반환은 최대 n개까지만 보장
         return places.stream()
+                .limit(n)
                 .map(PlaceResponseDto::new)
-                .collect(Collectors.toList());
+                .toList();
     }
-
-    public List<PlaceResponseDto> getPopularPlaces2() {
-        Region seoul = new Region(1L, "서울", "Seoul");
-        Region busan = new Region(2L, "부산", "Busan");
-        Region jeju = new Region(3L, "제주", "Jeju");
-
-        Place dummy1 = Place.builder()
-                .placeId(1L)
-                .region(seoul)
-                .nameKo("경복궁")
-                .nameEn("Gyeongbokgung Palace")
-                .descriptionKo("조선의 대표 궁궐")
-                .descriptionEn("Main royal palace of the Joseon dynasty")
-                .longitude(126.9769)
-                .latitude(37.5796)
-                .build();
-
-        Place dummy2 = Place.builder()
-                .placeId(2L)
-                .region(seoul)
-                .nameKo("남산타워")
-                .nameEn("Namsan Tower")
-                .descriptionKo("서울의 랜드마크 전망대")
-                .descriptionEn("Iconic observation tower in Seoul")
-                .longitude(126.9882)
-                .latitude(37.5512)
-                .build();
-
-        Place dummy3 = Place.builder()
-                .placeId(3L)
-                .region(seoul)
-                .nameKo("동대문디자인플라자")
-                .nameEn("Dongdaemun Design Plaza")
-                .descriptionKo("서울의 현대 건축 랜드마크")
-                .descriptionEn("Modern architectural landmark in Seoul")
-                .longitude(127.0095)
-                .latitude(37.5663)
-                .build();
-
-        Place dummy4 = Place.builder()
-                .placeId(4L)
-                .region(busan)
-                .nameKo("해운대 해수욕장")
-                .nameEn("Haeundae Beach")
-                .descriptionKo("부산의 대표 해수욕장")
-                .descriptionEn("Most famous beach in Busan")
-                .longitude(129.1604)
-                .latitude(35.1587)
-                .build();
-
-        Place dummy5 = Place.builder()
-                .placeId(5L)
-                .region(jeju)
-                .nameKo("성산일출봉")
-                .nameEn("Seongsan Ilchulbong")
-                .descriptionKo("제주의 일출 명소")
-                .descriptionEn("Famous sunrise spot in Jeju")
-                .longitude(126.9420)
-                .latitude(33.4580)
-                .build();
-
-        return List.of(
-                new PlaceResponseDto(dummy1),
-                new PlaceResponseDto(dummy2),
-                new PlaceResponseDto(dummy3),
-                new PlaceResponseDto(dummy4),
-                new PlaceResponseDto(dummy5)
-        );
-    }
-
 
     public List<PlaceThemeResponseDto> getPlacesByTheme(String keyword, int limit) {
         String jsonKeyword = "[\"" + keyword.toLowerCase() + "\"]";

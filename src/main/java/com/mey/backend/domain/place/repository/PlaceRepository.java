@@ -1,6 +1,7 @@
 package com.mey.backend.domain.place.repository;
 
 import com.mey.backend.domain.place.entity.Place;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -16,5 +17,9 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     List<Place> findByThemeKeywordWithLimit(@Param("themeJson") String themeJson, @Param("limit") int limit);
 
     Optional<Place> findByNameKo(String nameKo);
+
+    // JPQL의 MOD 함수로 홀수 placeId만 필터링
+    @Query("SELECT p FROM Place p WHERE MOD(p.placeId, 2) = 1")
+    List<Place> findOddIdPlaces(Pageable pageable);
 }
 
