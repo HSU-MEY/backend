@@ -59,15 +59,12 @@ public class Place extends BaseTimeEntity {
     private String tourApiPlaceId;
 
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, columnDefinition = "json")
+    @Column(columnDefinition = "json")
     private Map<String, String> openingHours; // 예: "monday": "09:00-18:00"
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "json")
     private List<String> themes;
-
-//    @Column(nullable = false)
-//    private String tags;
 
     @Column(nullable = false)
     private String costInfo;
