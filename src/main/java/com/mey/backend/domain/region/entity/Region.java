@@ -21,4 +21,11 @@ public class Region {
 
     @Column(nullable = false)
     private String nameEn;
+
+    @Column(nullable = false)
+    private String nameJp;
+
+    @Column(nullable = false)
+    private String nameCh;
+
 }

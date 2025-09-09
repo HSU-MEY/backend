@@ -339,7 +339,7 @@ public class RouteService {
                 .description(routePlace.getPlace().getDescriptionKo())
                 .latitude(BigDecimal.valueOf(routePlace.getPlace().getLatitude()))
                 .longitude(BigDecimal.valueOf(routePlace.getPlace().getLongitude()))
-                .address(routePlace.getPlace().getAddress())
+                .address(routePlace.getPlace().getAddressKo())
                 .imageUrls(Arrays.asList(routePlace.getPlace().getImageUrl()))
                 .openingHours(routePlace.getPlace().getOpeningHours())
                 .build();

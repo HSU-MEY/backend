@@ -44,7 +44,7 @@ public class PlaceResponseDto {
         this.longitude = place.getLongitude();
         this.latitude = place.getLatitude();
         this.imageUrl = place.getImageUrl();
-        this.address = place.getAddress();
+        this.address = place.getAddressKo();
         this.contactInfo = place.getContactInfo();
         this.websiteUrl = place.getWebsiteUrl();
         this.kakaoPlaceId = place.getKakaoPlaceId();

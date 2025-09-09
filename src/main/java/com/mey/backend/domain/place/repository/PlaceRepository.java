@@ -19,5 +19,8 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     // JPQL의 MOD 함수로 홀수 placeId만 필터링
     @Query("SELECT p FROM Place p WHERE MOD(p.placeId, 2) = 1")
     List<Place> findOddIdPlaces(Pageable pageable);
+
+    Optional<Place> findByTourApiPlaceId(String tourApiPlaceId);
+
 }
 
