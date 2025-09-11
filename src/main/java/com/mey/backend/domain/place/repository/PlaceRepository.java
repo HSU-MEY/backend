@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 public interface PlaceRepository extends JpaRepository<Place, Long> {
 
@@ -21,6 +20,7 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     List<Place> findOddIdPlaces(Pageable pageable);
 
     Place findPlaceByPlaceId(Long placeId);
-
+    @Query(value = "SELECT COUNT(*) FROM places p JOIN regions r ON p.region_id = r.region_id WHERE JSON_CONTAINS(p.themes, :themeJson) AND r.name_ko = :regionName", nativeQuery = true)
+    int countByThemeAndRegion(@Param("themeJson") String themeJson, @Param("regionName") String regionName);
 }
 

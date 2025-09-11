@@ -32,11 +32,11 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false)
     private String nameEn;
 
-    @Column(nullable = false)
-    private String nameJp;
-
-    @Column(nullable = false)
-    private String nameCh;
+//    @Column(nullable = false)
+//    private String nameJp;
+//
+//    @Column(nullable = false)
+//    private String nameCh;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descriptionKo;
@@ -45,11 +45,11 @@ public class Place extends BaseTimeEntity {
     private String descriptionEn;
 
 
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String descriptionJp;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
-    private String descriptionCh;
+//    @Column(nullable = false, columnDefinition = "TEXT")
+//    private String descriptionJp;
+//
+//    @Column(nullable = false, columnDefinition = "TEXT")
+//    private String descriptionCh;
 
     @Column(nullable = false)
     private Double longitude;
@@ -63,14 +63,14 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false)
     private String addressKo;
 
-    @Column(nullable = false)
-    private String addressEn;
-
-    @Column(nullable = false)
-    private String addressJp;
-
-    @Column(nullable = false)
-    private String addressCh;
+//    @Column(nullable = false)
+//    private String addressEn;
+//
+//    @Column(nullable = false)
+//    private String addressJp;
+//
+//    @Column(nullable = false)
+//    private String addressCh;
 
     private String contactInfo;
 
@@ -88,10 +88,6 @@ public class Place extends BaseTimeEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false, columnDefinition = "json")
     private List<String> themes;
-
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(nullable = false, columnDefinition = "json")
-    private List<Long> relatedByPlaces;
 
     private String costInfo;
 }
