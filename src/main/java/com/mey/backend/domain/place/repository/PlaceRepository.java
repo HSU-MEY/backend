@@ -20,7 +20,7 @@ public interface PlaceRepository extends JpaRepository<Place, Long> {
     @Query("SELECT p FROM Place p WHERE MOD(p.placeId, 2) = 1")
     List<Place> findOddIdPlaces(Pageable pageable);
 
-    Optional<Place> findByTourApiPlaceId(String tourApiPlaceId);
+    Place findPlaceByPlaceId(Long placeId);
 
 }
 

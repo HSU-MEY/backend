@@ -94,10 +94,4 @@ public class Place extends BaseTimeEntity {
     private List<Long> relatedByPlaces;
 
     private String costInfo;
-
-    @Column(nullable = false)
-    private String areaCd;
-
-    @Column(nullable = false)
-    private String siGunGuCd;
 }

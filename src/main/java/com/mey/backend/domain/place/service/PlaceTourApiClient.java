@@ -2,8 +2,8 @@ package com.mey.backend.domain.place.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.mey.backend.domain.place.dto.DetailCommonItemDto;
-import com.mey.backend.domain.place.dto.RelatedPlaceItemDto;
+import com.mey.backend.domain.place.dto.RelatedResponseDto;
+import com.mey.backend.domain.place.entity.Place;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -17,8 +17,6 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 @Slf4j
 @Component
@@ -27,32 +25,81 @@ public class PlaceTourApiClient {
 
     private final ObjectMapper om = new ObjectMapper();
 
-    @Value("${tourapi.service-key}") private String serviceKey;
-    @Value("${tourapi.mobile-os}")  private String mobileOs;
-    @Value("${tourapi.mobile-app}") private String mobileApp;
-    @Value("${tourapi.base.related}") private String relatedBase;
-    @Value("${tourapi.base.kor}")     private String korBase;
-    @Value("${tourapi.base.eng}")     private String engBase;
-    @Value("${tourapi.base.jpn}")     private String jpnBase;
-    @Value("${tourapi.base.chs}")     private String chsBase;
+    @Value("${tourapi.service-key}")
+    private String serviceKey;
+    @Value("${tourapi.mobile-os}")
+    private String mobileOs;
+    @Value("${tourapi.mobile-app}")
+    private String mobileApp;
+    @Value("${tourapi.base.related}")
+    private String relatedBase;
+    @Value("${tourapi.base.kor}")
+    private String korBase;
+    @Value("${tourapi.base.eng}")
+    private String engBase;
+    @Value("${tourapi.base.jpn}")
+    private String jpnBase;
+    @Value("${tourapi.base.chs}")
+    private String chsBase;
 
-    private RestClient client(String baseUrl) {
-        return RestClient.builder().baseUrl(baseUrl).build();
+
+    // TourAPI locationBasedList2 호출해서 areaCode, sigunguCode 반환
+    public String[] fetchRegionCodesByLocation(double latitude, double longitude) {
+        String encodedKey = URLEncoder.encode(serviceKey, StandardCharsets.UTF_8);
+
+        URI uri = UriComponentsBuilder
+                .fromUriString(korBase)
+                .path("/locationBasedList2")
+                .queryParam("serviceKey", encodedKey)
+                .queryParam("MobileOS", mobileOs)
+                .queryParam("MobileApp", mobileApp)
+                .queryParam("_type", "json")
+                .queryParam("mapX", longitude)   // 경도
+                .queryParam("mapY", latitude)    // 위도
+                .queryParam("radius", 700)       // 1000m 반경
+                .queryParam("numOfRows", 1)      // 한 건만 조회
+                .queryParam("pageNo", 1)
+                .build(true).toUri();
+
+        try {
+            String body = RestClient.builder().baseUrl("")
+                    .build()
+                    .get()
+                    .uri(uri)
+                    .accept(MediaType.APPLICATION_JSON)
+                    .retrieve()
+                    .body(String.class);
+
+            JsonNode items = om.readTree(body).at("/response/body/items/item");
+
+            JsonNode target = items.isArray() && items.size() > 0 ? items.get(0) : items;
+
+            if (target != null && !target.isMissingNode()) {
+                String areaCode = target.path("lDongRegnCd").asText(null);
+                String sigunguCode = target.path("lDongSignguCd").asText(null);
+
+                if (Integer.parseInt(areaCode) > 0) {
+                    log.info("✅ 좌표→행정코드 변환 성공 lat={}, lon={}, area={}, sigungu={}",
+                            latitude, longitude, areaCode, sigunguCode);
+                    return new String[]{areaCode, sigunguCode};
+                } else {
+                    log.warn("⚠️ 지역코드 없음 lat={}, lon={}, raw={}", latitude, longitude, target.toPrettyString());
+                }
+            } else {
+                log.warn("⚠️ TourAPI locationBasedList2 결과 없음 lat={}, lon={}", latitude, longitude);
+            }
+        } catch (Exception e) {
+            log.error("❌ TourAPI locationBasedList2 호출 실패 lat={}, lon={}", latitude, longitude, e);
+        }
+        return null;
     }
 
-
-    private String safeHead(String body, int max) {
-        if (body == null) return "null";
-        String t = body.trim();
-        return t.substring(0, Math.min(max, t.length()));
-    }
-
-    // 1) 연관관광지: TarRlteTarService1/searchKeyword1
-    // 필수: baseYm(YYYYMM), areaCd, signguCd, keyword
-    public List<RelatedPlaceItemDto> fetchRelatedPlaces(String keyword, String baseYm, String areaCd, String signguCd) {
+    public List<RelatedResponseDto> fetchRelatedPlacesInfo(
+            Place place, String baseYm, String areaCd, String sigunguCd) {
 
         String encodedKey = URLEncoder.encode(serviceKey, StandardCharsets.UTF_8);
-        String encodedKeword = URLEncoder.encode(keyword, StandardCharsets.UTF_8);
+        String encodedKeyword = URLEncoder.encode(place.getNameKo(), StandardCharsets.UTF_8);
+        String fullSigunguCd = areaCd+ sigunguCd;
         URI uri = UriComponentsBuilder
                 .fromUriString(relatedBase)
                 .path("/searchKeyword1")
@@ -62,160 +109,163 @@ public class PlaceTourApiClient {
                 .queryParam("_type", "json")
                 .queryParam("baseYm", baseYm)
                 .queryParam("areaCd", areaCd)
-                .queryParam("signguCd", signguCd)
-                .queryParam("keyword", encodedKeword)
+                .queryParam("signguCd", fullSigunguCd)
+                .queryParam("keyword", encodedKeyword)
                 .build(true).toUri();
 
-        log.info("▶ TourAPI(Related) 호출: {}", uri);
-
-        String body = null;
         try {
-            body = RestClient.builder().baseUrl("")
+            String body = RestClient.builder().baseUrl("")
                     .build()
                     .get()
                     .uri(uri)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(String.class);
-            log.info("◀ TourAPI 응답(앞 300자): {}", safeHead(body, 300));
-        } catch (Exception e) {
-            log.error("❌ TourAPI 호출 실패 keyword={}, uri={}", keyword, uri, e);
-            return List.of();
-        }
 
-        if (body == null || body.isBlank()) {
-            log.error("❌ TourAPI 빈 응답 keyword={}", keyword);
-            return List.of();
-        }
+            log.info("📡 TourAPI searchKeyword1 호출 placeId={}, uri={}", place.getNameKo(), uri);
+            log.debug("📡 searchKeyword1 응답 bodyHead={}", safeHead(body, 200));
 
-        String trimmed = body.trim();
-        if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) {
-            // XML 에러 응답 처리
-            String resultMsg = null, authMsg = null;
-            try {
-                Matcher m1 = Pattern.compile("<resultMsg>(.*?)</resultMsg>").matcher(trimmed);
-                if (m1.find()) resultMsg = m1.group(1);
-                Matcher m2 = Pattern.compile("<returnAuthMsg>(.*?)</returnAuthMsg>").matcher(trimmed);
-                if (m2.find()) authMsg = m2.group(1);
-            } catch (Exception ignore) {}
-            log.error("❌ TourAPI XML 에러 keyword={}, resultMsg={}, returnAuthMsg={}, head={}",
-                    keyword, resultMsg, authMsg, safeHead(trimmed, 200));
-            return List.of();
-        }
+            List<RelatedResponseDto> out = new ArrayList<>();
+            JsonNode items = om.readTree(body).at("/response/body/items/item");
 
-        try {
-            List<RelatedPlaceItemDto> out = new ArrayList<>();
-            JsonNode items = om.readTree(trimmed).at("/response/body/items/item");
             if (items.isArray()) {
+                log.info("🔎 연관관광지 {}건 placeId={}", items.size(), place.getPlaceId());
+
                 for (JsonNode it : items) {
-                    out.add(new RelatedPlaceItemDto(
-                            it.path("rlteTatsCd").asText(null),
-                            it.path("rlteTatsNm").asText(null)
+                    String name = it.path("rlteTatsNm").asText(null);
+                    String regnCd = it.path("rlteRegnCd").asText(null);
+                    String signgu = it.path("rlteSignguCd").asText(null);
+
+                    Double distance = null;
+                    double[] coords = fetchCoordsByKeyword(name, regnCd, signgu);
+                    if (coords != null) {
+                        distance = haversine(
+                                place.getLatitude(), place.getLongitude(),
+                                coords[0], coords[1]
+                        );
+                        log.info("✅ 거리계산 성공 from={} → to={} distance={}m",
+                                place.getNameKo(), name, distance.intValue());
+                    } else {
+                        log.warn("⚠️ 좌표조회 실패 keyword={} (encoded={}), areaCd={}, signguCd={}, 응답={}",
+                                name, encodedKeyword, areaCd, sigunguCd, safeHead(body, 200));
+                    }
+
+                    out.add(new RelatedResponseDto(
+                            name,
+                            it.path("rlteRegnNm").asText(null),
+                            it.path("rlteSignguNm").asText(null),
+                            it.path("rlteCtgryLclsNm").asText(null),
+                            it.path("rlteCtgryMclsNm").asText(null),
+                            it.path("rlteCtgrySclsNm").asText(null),
+                            distance
                     ));
                 }
-            } else if (!items.isMissingNode()) {
-                out.add(new RelatedPlaceItemDto(
-                        items.path("rlteTatsCd").asText(null),
-                        items.path("rlteTatsNm").asText(null)
-                ));
+            } else {
+                log.warn("⚠️ 연관관광지 없음 placeId={}, bodyHead={}",
+                        place.getPlaceId(), safeHead(body, 200));
             }
-            log.info("✔ TourAPI 파싱 성공 keyword={}, 결과 {}건", keyword, out.size());
+
             return out;
+
         } catch (Exception e) {
-            log.error("❌ TourAPI JSON 파싱 실패 keyword={}, bodyHead={}", keyword, safeHead(trimmed, 200), e);
+            log.error("❌ TourAPI fetchRelatedPlacesInfo 실패 placeId={}, uri={}", place.getPlaceId(), uri, e);
             return List.of();
         }
     }
 
-    // 2) 다국어 detailCommon2 (Kor/Eng/Jpn/ChsService2 하위)
-    private DetailCommonItemDto fetchDetailCommon(String baseUrl, String contentId) {
+    // 연관관광지명으로 TourAPI(KorService2/searchKeyword2)에서 좌표(mapx/mapy)를 조회
+    // - 우선 areaCode+sigunguCode로 시도
+    // - 실패 시 areaCode만
+    // - 그래도 실패하면 keyword만
+    // @return [위도(lat), 경도(lon)] or null
+    private double[] fetchCoordsByKeyword(String keyword, String areaCd, String signguCd) {
+        // 1차: area + sigungu
+        double[] coords = trySearchKeyword2(keyword, areaCd, signguCd);
+        if (coords != null) {
+            log.info("✅ 좌표조회 성공 (정밀검색) keyword={}, lat={}, lon={}", keyword, coords[0], coords[1]);
+            return coords;
+        }
 
+        // 2차: area만
+        coords = trySearchKeyword2(keyword, areaCd, null);
+        if (coords != null) {
+            log.info("✅ 좌표조회 성공 (시도 검색) keyword={}, lat={}, lon={}", keyword, coords[0], coords[1]);
+            return coords;
+        }
+
+        // 3차: keyword만
+        coords = trySearchKeyword2(keyword, null, null);
+        if (coords != null) {
+            log.info("✅ 좌표조회 성공 (전국 검색) keyword={}, lat={}, lon={}", keyword, coords[0], coords[1]);
+            return coords;
+        }
+
+        log.warn("❌ 좌표조회 실패 keyword={}", keyword);
+        return null;
+    }
+
+    // 실제로 TourAPI /searchKeyword2 호출을 수행하는 헬퍼 메서드
+    private double[] trySearchKeyword2(String keyword, String areaCd, String signguCd) {
         String encodedKey = URLEncoder.encode(serviceKey, StandardCharsets.UTF_8);
+        String encodedKeyword = URLEncoder.encode(keyword, StandardCharsets.UTF_8);
 
-        URI uri = UriComponentsBuilder
-                .fromUriString(baseUrl)
-                .path("/detailCommon2")
+        UriComponentsBuilder builder = UriComponentsBuilder
+                .fromUriString(korBase)
+                .path("/searchKeyword2")
                 .queryParam("serviceKey", encodedKey)
                 .queryParam("MobileOS", mobileOs)
                 .queryParam("MobileApp", mobileApp)
                 .queryParam("_type", "json")
-                .queryParam("contentId", contentId)
-                .queryParam("defaultYN", "Y")
-                .queryParam("firstImageYN", "Y")
-                .queryParam("areacodeYN", "Y")
-                .queryParam("addrinfoYN", "Y")
-                .queryParam("mapinfoYN", "Y")
-                .queryParam("overviewYN", "Y")
-                .build(true)
-                .toUri();
+                .queryParam("keyword", encodedKeyword);
 
-        log.info("▶ TourAPI(detailCommon2) 호출: {}", uri);
+        if (areaCd != null) builder.queryParam("areaCode", areaCd);
+        if (signguCd != null) builder.queryParam("sigunguCode", signguCd);
 
-        String body = null;
+        URI uri = builder.build(true).toUri();
+
         try {
-            body = RestClient.builder().baseUrl("")
+            String body = RestClient.builder().baseUrl("")
                     .build()
                     .get()
                     .uri(uri)
                     .accept(MediaType.APPLICATION_JSON)
                     .retrieve()
                     .body(String.class);
-            log.info("◀ TourAPI 응답(앞 300자): {}", safeHead(body, 300));
-        } catch (Exception e) {
-            log.error("❌ TourAPI 호출 실패 detailCommon2 contentId={}, uri={}", contentId, uri, e);
-            return null;
-        }
 
-        if (body == null || body.isBlank()) {
-            log.error("❌ TourAPI 빈 응답 detailCommon2 contentId={}", contentId);
-            return null;
-        }
+            log.debug("📡 searchKeyword2 호출 keyword={}, uri={}, bodyHead={}", keyword, uri, safeHead(body, 200));
 
-        String trimmed = body.trim();
-        if (!(trimmed.startsWith("{") || trimmed.startsWith("["))) {
-            // XML 에러 응답 처리
-            String resultMsg = null, authMsg = null;
-            try {
-                Matcher m1 = Pattern.compile("<resultMsg>(.*?)</resultMsg>").matcher(trimmed);
-                if (m1.find()) resultMsg = m1.group(1);
-                Matcher m2 = Pattern.compile("<returnAuthMsg>(.*?)</returnAuthMsg>").matcher(trimmed);
-                if (m2.find()) authMsg = m2.group(1);
-            } catch (Exception ignore) {}
-            log.error("❌ TourAPI XML 에러 detailCommon2 contentId={}, resultMsg={}, returnAuthMsg={}, head={}",
-                    contentId, resultMsg, authMsg, safeHead(trimmed, 200));
-            return null;
-        }
+            JsonNode items = om.readTree(body).at("/response/body/items/item");
 
-        try {
-            JsonNode item = om.readTree(trimmed).at("/response/body/items/item");
-            if (item == null || item.isMissingNode() || item.isNull()) {
-                log.warn("⚠ TourAPI detailCommon2 contentId={} 결과 없음", contentId);
-                return null;
+            if (items.isArray() && items.size() > 0) {
+                JsonNode first = items.get(0);
+                double lon = first.path("mapx").asDouble();
+                double lat = first.path("mapy").asDouble();
+                return new double[]{lat, lon};
+            } else if (!items.isMissingNode()) {
+                double lon = items.path("mapx").asDouble();
+                double lat = items.path("mapy").asDouble();
+                return new double[]{lat, lon};
             }
-
-            DetailCommonItemDto dto = DetailCommonItemDto.builder()
-                    .contentId(item.path("contentid").asText(null))
-                    .title(item.path("title").asText(null))
-                    .overview(item.path("overview").asText(null))
-                    .addr(item.path("addr1").asText(null))
-                    .mapx(item.path("mapx").asText(null))
-                    .mapy(item.path("mapy").asText(null))
-                    .areaCode(item.path("areacode").asText(null))
-                    .siGunGuCode(item.path("siGungu").asText(null))
-                    .image(item.path("firstimage").asText(null))
-                    .build();
-
-            log.info("✔ TourAPI 파싱 성공 detailCommon2 contentId={}", contentId);
-            return dto;
         } catch (Exception e) {
-            log.error("❌ TourAPI JSON 파싱 실패 detailCommon2 contentId={}, bodyHead={}",
-                    contentId, safeHead(trimmed, 200), e);
-            return null;
+            log.error("❌ TourAPI searchKeyword2 호출 실패 keyword={}, uri={}", keyword, uri, e);
         }
+        return null;
     }
 
-    public DetailCommonItemDto fetchKorDetailCommon(String contentId) { return fetchDetailCommon(korBase, contentId); }
-    public DetailCommonItemDto fetchEngDetailCommon(String contentId) { return fetchDetailCommon(engBase, contentId); }
-    public DetailCommonItemDto fetchJpnDetailCommon(String contentId) { return fetchDetailCommon(jpnBase, contentId); }
-    public DetailCommonItemDto fetchChsDetailCommon(String contentId) { return fetchDetailCommon(chsBase, contentId); }
+    private String safeHead(String body, int max) {
+        if (body == null) return "null";
+        String t = body.trim();
+        return t.substring(0, Math.min(max, t.length()));
+    }
+
+    private double haversine(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371000; // Earth radius in meters
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c;
+    }
 }
