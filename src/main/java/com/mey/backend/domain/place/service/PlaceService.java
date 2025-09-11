@@ -40,18 +40,11 @@ public class PlaceService {
         return new PlaceResponseDto(place);
     }
 
-    public List<RelatedResponseDto> getRelatedPlaces(Long placeId) {
+    public List<RelatedResponseDto> getRelatedPlaces(Long placeId, String language) {
 
         Place place = placeRepository.findPlaceByPlaceId(placeId);
 
-        String[] getAreaCdSiGunGuCd = tourApiClient.fetchRegionCodesByLocation(place.getLatitude(), place.getLongitude());
-
-        return tourApiClient.fetchRelatedPlacesInfo(
-                place,
-                "202508",
-                getAreaCdSiGunGuCd[0],
-                getAreaCdSiGunGuCd[1]
-        );
+        return tourApiClient.fetchRelatedPlaces(place.getLatitude(), place.getLongitude(), language);
     }
 
     @Transactional(readOnly = true)

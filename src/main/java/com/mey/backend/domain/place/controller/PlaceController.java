@@ -43,10 +43,10 @@ public class PlaceController {
             summary = "장소 ID로 연계 관광지 정보 조회",
             description = "장소 ID로 연계 관광지 정보를 조회한 결과를 반환합니다."
     )
-    @GetMapping("/{placeId}/related")
-    public List<RelatedResponseDto> getRelatedPlaces(@PathVariable Long placeId) {
+    @GetMapping("/{placeId}/related/{language}")
+    public List<RelatedResponseDto> getRelatedPlaces(@PathVariable Long placeId, @PathVariable String language) {
 
-        return placeService.getRelatedPlaces(placeId);
+        return placeService.getRelatedPlaces(placeId, language);
     }
 
     @Operation(
