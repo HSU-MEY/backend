@@ -36,6 +36,17 @@ tmap:
     lang: 0 # 0=Korean
     count: 1
 
+tourapi:
+  service-key: ${TOURAPI_SERVICE_KEY}
+  mobile-os: "ETC"
+  mobile-app: "KRoute"
+  base:
+    related: http://apis.data.go.kr/B551011/TarRlteTarService1
+    kor: http://apis.data.go.kr/B551011/KorService2
+    eng: http://apis.data.go.kr/B551011/EngService2
+    jpn: http://apis.data.go.kr/B551011/JpnService2
+    chs: http://apis.data.go.kr/B551011/ChsService2
+
 cloud:
   aws:
     s3:

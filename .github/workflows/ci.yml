@@ -18,6 +18,7 @@ jobs:
       TMAP_APP_KEY: ${{ secrets.TMAP_APP_KEY }}
       S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
       S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+      TOURAPI_SERVICE_KEY: ${{ secrets.TOURAPI_SERVICE_KEY }}
 
     steps:
       - uses: actions/checkout@v2

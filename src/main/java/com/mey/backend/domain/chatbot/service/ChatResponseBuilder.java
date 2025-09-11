@@ -91,7 +91,7 @@ public class ChatResponseBuilder {
                         .placeId(place.getPlaceId())
                         .name(place.getNameKo())
                         .description(place.getDescriptionKo())
-                        .address(place.getAddress())
+                        .address(place.getAddressKo())
                         .themes(place.getThemes())
                         .costInfo(place.getCostInfo())
                         .build())

@@ -32,11 +32,24 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false)
     private String nameEn;
 
+//    @Column(nullable = false)
+//    private String nameJp;
+//
+//    @Column(nullable = false)
+//    private String nameCh;
+
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descriptionKo;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descriptionEn;
+
+
+//    @Column(nullable = false, columnDefinition = "TEXT")
+//    private String descriptionJp;
+//
+//    @Column(nullable = false, columnDefinition = "TEXT")
+//    private String descriptionCh;
 
     @Column(nullable = false)
     private Double longitude;
@@ -48,7 +61,16 @@ public class Place extends BaseTimeEntity {
     private String imageUrl;
 
     @Column(nullable = false)
-    private String address;
+    private String addressKo;
+
+//    @Column(nullable = false)
+//    private String addressEn;
+//
+//    @Column(nullable = false)
+//    private String addressJp;
+//
+//    @Column(nullable = false)
+//    private String addressCh;
 
     private String contactInfo;
 
@@ -56,6 +78,7 @@ public class Place extends BaseTimeEntity {
 
     private String kakaoPlaceId;
 
+    @Column(unique = true)
     private String tourApiPlaceId;
 
     @JdbcTypeCode(SqlTypes.JSON)
@@ -66,6 +89,5 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "json")
     private List<String> themes;
 
-    @Column(nullable = false)
     private String costInfo;
 }

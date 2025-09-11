@@ -263,7 +263,7 @@ public class RagService {
                         """,
                         place.getNameKo(),
                         place.getDescriptionKo(),
-                        place.getAddress(),
+                        place.getAddressKo(),
                         place.getRegion().getNameKo(),
                         String.join(", ", place.getThemes()),
                         place.getCostInfo(),

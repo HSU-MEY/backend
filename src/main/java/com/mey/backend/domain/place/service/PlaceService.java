@@ -3,9 +3,9 @@ package com.mey.backend.domain.place.service;
 import com.mey.backend.domain.place.dto.PlaceResponseDto;
 import com.mey.backend.domain.place.dto.PlaceSimpleResponseDto;
 import com.mey.backend.domain.place.dto.PlaceThemeResponseDto;
+import com.mey.backend.domain.place.dto.RelatedResponseDto;
 import com.mey.backend.domain.place.entity.Place;
 import com.mey.backend.domain.place.repository.PlaceRepository;
-import com.mey.backend.domain.place.repository.UserLikePlaceRepository;
 import com.mey.backend.global.exception.PlaceException;
 import com.mey.backend.global.payload.status.ErrorStatus;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
 public class PlaceService {
 
     private final PlaceRepository placeRepository;
-    private final UserLikePlaceRepository userLikePlaceRepository;
+    private final PlaceTourApiClient tourApiClient;
 
     public List<PlaceSimpleResponseDto> searchPlaces(String keyword) {
 
@@ -38,6 +38,13 @@ public class PlaceService {
         Place place = placeRepository.findById(placeId)
                 .orElseThrow(() -> new PlaceException(ErrorStatus.PLACE_NOT_FOUND));
         return new PlaceResponseDto(place);
+    }
+
+    public List<RelatedResponseDto> getRelatedPlaces(Long placeId, String language) {
+
+        Place place = placeRepository.findPlaceByPlaceId(placeId);
+
+        return tourApiClient.fetchRelatedPlaces(place.getLatitude(), place.getLongitude(), language);
     }
 
     @Transactional(readOnly = true)

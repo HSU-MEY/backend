@@ -275,7 +275,7 @@ public class ChatService {
         StringBuilder document = new StringBuilder();
         document.append("장소명: ").append(place.getNameKo()).append("\n");
         document.append("설명: ").append(place.getDescriptionKo()).append("\n");
-        document.append("주소: ").append(place.getAddress()).append("\n");
+        document.append("주소: ").append(place.getAddressKo()).append("\n");
         document.append("지역: ").append(place.getRegion().getNameKo()).append("\n");
         document.append("테마: ").append(String.join(", ", place.getThemes())).append("\n");
         document.append("비용정보: ").append(place.getCostInfo()).append("\n");
