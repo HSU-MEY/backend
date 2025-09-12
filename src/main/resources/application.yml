@@ -61,3 +61,10 @@ cloud:
     credentials:
       access-key: ${S3_ACCESS_KEY}
       secret-key: ${S3_SECRET_KEY}
+
+# Chatbot 다국어 설정
+chatbot:
+  language:
+    supported: ko,en,ja,zh  # 지원하는 언어 목록
+    fallback: en             # 지원되지 않는 언어의 fallback 언어 (일본어/중국어 → 영어)
+    default: ko              # 기본 언어

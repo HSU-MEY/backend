@@ -2,10 +2,59 @@
 
 ## 🎯 API 구조
 - **엔드포인트**: `POST /api/chat/query`
-- **요청**: `ChatRequest` (query + context)  
+- **요청**: `ChatRequest` (query + context + language)  
 - **응답**: `CommonResponse<ChatResponse>`
+- **다국어 지원**: 한국어(ko), 영어(en), 일본어(ja), 중국어(zh)
 
 ## 📋 사용자 시나리오별 질답 흐름
+
+### 🌍 다국어 지원 예시
+
+#### 영어 사용자 예시
+```json
+// 요청
+{
+  "query": "recommend me a kpop route",
+  "context": null,
+  "language": "en"
+}
+
+// 응답 ❓
+{
+  "responseType": "QUESTION",
+  "message": "Which region would you like to visit? (e.g., Seoul, Busan)",
+  "context": {
+    "theme": "K_POP",
+    "conversationState": "AWAITING_REGION",
+    "lastBotQuestion": "Which region would you like to visit? (e.g., Seoul, Busan)",
+    "sessionId": "...",
+    "userLanguage": "en"
+  }
+}
+```
+
+#### 일본어 사용자 예시
+```json
+// 요청
+{
+  "query": "Kポップルートを推薦してください",
+  "context": null,
+  "language": "ja"
+}
+
+// 응답 ❓
+{
+  "responseType": "QUESTION", 
+  "message": "どちらの地域をご希望ですか？（例：ソウル、釜山）",
+  "context": {
+    "theme": "K_POP",
+    "conversationState": "AWAITING_REGION",
+    "lastBotQuestion": "どちらの地域をご希望ですか？（例：ソウル、釜山）",
+    "sessionId": "...",
+    "userLanguage": "ja"
+  }
+}
+```
 
 ### 시나리오 1: 새 루트 생성 (CREATE_ROUTE) 🆕
 
@@ -15,7 +64,8 @@
 POST /api/chat/query
 {
   "query": "2일 서울 K-POP 루트 추천해줘",
-  "context": null
+  "context": null,
+  "language": "ko"
 }
 
 // 응답 1 ✅
@@ -38,7 +88,8 @@ POST /api/chat/query
 // 요청 1 
 {
   "query": "루트 추천해줘",
-  "context": null
+  "context": null,
+  "language": "ko"
 }
 
 // 응답 1 ❓
@@ -51,7 +102,10 @@ POST /api/chat/query
     "budget": null,
     "preferences": null,
     "durationMinutes": null,
-    "days": null
+    "days": null,
+    "conversationState": "AWAITING_THEME",
+    "sessionId": "...",
+    "userLanguage": "ko"
   }
 }
 
@@ -64,8 +118,12 @@ POST /api/chat/query
     "budget": null,
     "preferences": null,
     "durationMinutes": null,
-    "days": null
-  }
+    "days": null,
+    "conversationState": "AWAITING_THEME",
+    "sessionId": "...",
+    "userLanguage": "ko"
+  },
+  "language": "ko"
 }
 
 // 응답 2 ❓
@@ -78,7 +136,10 @@ POST /api/chat/query
     "budget": null,
     "preferences": null,
     "durationMinutes": null,
-    "days": null
+    "days": null,
+    "conversationState": "AWAITING_REGION",
+    "sessionId": "...",
+    "userLanguage": "ko"
   }
 }
 
@@ -91,8 +152,12 @@ POST /api/chat/query
     "budget": null,
     "preferences": null,
     "durationMinutes": null,
-    "days": null
-  }
+    "days": null,
+    "conversationState": "AWAITING_REGION",
+    "sessionId": "...",
+    "userLanguage": "ko"
+  },
+  "language": "ko"
 }
 
 // 응답 3 ❓
@@ -105,7 +170,10 @@ POST /api/chat/query
     "budget": null,
     "preferences": null,
     "durationMinutes": null,
-    "days": null
+    "days": null,
+    "conversationState": "AWAITING_DAYS",
+    "sessionId": "...",
+    "userLanguage": "ko"
   }
 }
 
@@ -118,8 +186,12 @@ POST /api/chat/query
     "budget": null,
     "preferences": null,
     "durationMinutes": null,
-    "days": null
-  }
+    "days": null,
+    "conversationState": "AWAITING_DAYS",
+    "sessionId": "...",
+    "userLanguage": "ko"
+  },
+  "language": "ko"
 }
 
 // 응답 4 ✅
@@ -133,7 +205,10 @@ POST /api/chat/query
     "budget": null,
     "preferences": null,
     "durationMinutes": null,
-    "days": 2
+    "days": 2,
+    "conversationState": "READY_FOR_ROUTE",
+    "sessionId": "...",
+    "userLanguage": "ko"
   }
 }
 ```
@@ -143,7 +218,8 @@ POST /api/chat/query
 // 요청
 {
   "query": "4일 서울 K-POP 루트 만들어줘",
-  "context": null
+  "context": null,
+  "language": "ko"
 }
 
 // 응답 ⚠️
@@ -162,7 +238,8 @@ POST /api/chat/query
 // 요청
 {
   "query": "기존에 만들어진 부산 드라마 루트 있어?",
-  "context": null
+  "context": null,
+  "language": "ko"
 }
 
 // 응답 ✅
@@ -190,7 +267,8 @@ POST /api/chat/query
 // 요청
 {
   "query": "홍대 근처 K-POP 장소 어디 있어?",
-  "context": null
+  "context": null,
+  "language": "ko"
 }
 
 // 응답 ✅
@@ -218,7 +296,8 @@ POST /api/chat/query
 // 요청 
 {
   "query": "BTS가 뭐야?",
-  "context": null
+  "context": null,
+  "language": "ko"
 }
 
 // 응답 ✅
@@ -237,7 +316,8 @@ POST /api/chat/query
 // 요청
 {
   "query": "루트 추천해줘",
-  "context": {"theme": "KPOP", "region": "서울", "days": 2}
+  "context": {"theme": "KPOP", "region": "서울", "days": 2},
+  "language": "ko"
 }
 
 // 응답 ❌
@@ -252,7 +332,8 @@ POST /api/chat/query
 // 요청
 {
   "query": "제주도 K-POP 장소 찾아줘",
-  "context": null
+  "context": null,
+  "language": "ko"
 }
 
 // 응답 ❌
@@ -269,7 +350,8 @@ POST /api/chat/query
   "query": "루트 추천",
   "context": {
     "theme": "INVALID_THEME"  // 잘못된 Theme enum 값
-  }
+  },
+  "language": "ko"
 }
 
 // 응답 ❌ (400 Bad Request)
@@ -303,11 +385,13 @@ interface ChatContext {
   lastBotQuestion?: string | null;
   sessionId?: string | null;  // 🔒 사용자별 세션 보장
   conversationStartTime?: number | null;
+  userLanguage?: "ko" | "en" | "ja" | "zh" | null;  // 🌍 사용자 언어
 }
 
 interface ChatRequest {
   query: string;
   context: ChatContext | null;
+  language: "ko" | "en" | "ja" | "zh";  // 🌍 다국어 지원
 }
 
 interface ChatResponse {
@@ -318,16 +402,23 @@ interface ChatResponse {
 }
 ```
 
-### 🔄 **Context 상태 관리 플로우 (개선된 세션 보장)**
+### 🔄 **Context 상태 관리 플로우 (다국어 지원 포함)**
 
 ```javascript
 class ChatManager {
-  constructor() {
+  constructor(userLanguage = 'ko') {
     this.currentContext = null; // 현재 대화 컨텍스트
+    this.userLanguage = userLanguage; // 🌍 사용자 언어 설정
   }
 
   generateSessionId() {
     return 'session_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+  }
+
+  setLanguage(language) {
+    this.userLanguage = language;
+    // 언어 변경 시 새 세션 시작
+    this.resetContext();
   }
 
   async sendMessage(query) {
@@ -336,13 +427,15 @@ class ChatManager {
       this.currentContext = {
         ...this.currentContext,
         sessionId: this.generateSessionId(),
-        conversationStartTime: Date.now()
+        conversationStartTime: Date.now(),
+        userLanguage: this.userLanguage  // 🌍 언어 정보 포함
       };
     }
 
     const request = {
       query: query,
-      context: this.currentContext  // ⚠️ sessionId를 포함한 전체 context 전송
+      context: this.currentContext,  // ⚠️ sessionId를 포함한 전체 context 전송
+      language: this.userLanguage    // 🌍 언어 명시적 전송
     };
 
     const response = await fetch('/api/chat/query', {
@@ -369,62 +462,56 @@ class ChatManager {
   getConversationState() {
     return this.currentContext?.conversationState;
   }
+
+  getUserLanguage() {
+    return this.userLanguage;
+  }
 }
 ```
 
-### 📝 **상태 기반 대화 사용 예시**
+### 📝 **다국어 상태 기반 대화 사용 예시**
 
 ```javascript
-const chatManager = new ChatManager();
+// 영어 사용자
+const chatManager = new ChatManager('en');
 
 // 1. 첫 번째 요청 (세션 시작)
-let response1 = await chatManager.sendMessage("루트 추천해줘");
+let response1 = await chatManager.sendMessage("recommend me a kpop route");
 console.log(response1.result.context);
 // 출력: {
 //   sessionId: "session_1693920000_abc123",
-//   conversationState: "AWAITING_THEME",
-//   lastBotQuestion: "어떤 테마의 루트를 찾고 계신가요?",
+//   conversationState: "AWAITING_REGION",  // 테마는 이미 추출됨
+//   lastBotQuestion: "Which region would you like to visit? (e.g., Seoul, Busan)",
 //   conversationStartTime: 1693920000000,
-//   theme: null, region: null, days: null, ...
+//   theme: "K_POP", region: null, days: null,
+//   userLanguage: "en"
 // }
 
-// 2. 두 번째 요청 (테마 제공 - 의도분류 건너뛰고 직접 처리!)
-let response2 = await chatManager.sendMessage("K-POP이요");
-console.log(response2.result.context);
-// 출력: {
-//   sessionId: "session_1693920000_abc123",  // 동일 세션 유지
-//   conversationState: "AWAITING_REGION",    // 다음 상태로 전환
-//   lastBotQuestion: "어느 지역의 루트를 원하시나요?",
-//   theme: "KPOP",                          // 테마 정보 추가
-//   region: null, days: null, ...
-// }
+// 2. 두 번째 요청 (지역 제공)
+let response2 = await chatManager.sendMessage("Seoul");
+// conversationState: "AWAITING_DAYS", theme: "K_POP", region: "Seoul"
 
-// 3. 세 번째 요청 (지역 제공)
-let response3 = await chatManager.sendMessage("서울로");
-// conversationState: "AWAITING_DAYS", theme: "KPOP", region: "서울"
-
-// 4. 네 번째 요청 (일수 제공)
-let response4 = await chatManager.sendMessage("2일");
+// 3. 세 번째 요청 (일수 제공)  
+let response3 = await chatManager.sendMessage("2 days");
 // responseType: "ROUTE_RECOMMENDATION" - 루트 생성 완료!
-
-// 🔍 세션 상태 확인
-console.log(`현재 세션 ID: ${chatManager.getCurrentSessionId()}`);
-console.log(`대화 상태: ${chatManager.getConversationState()}`);
 ```
 
 ### ⚠️ **주의사항**
 
 1. **Context 누적**: 각 응답의 `context` 필드를 다음 요청의 `context`로 그대로 사용
 2. **세션 보장**: `sessionId`는 백엔드에서 자동 생성/관리되므로 프론트엔드는 그대로 전달만
-3. **상태 초기화**: 새로운 대화 시작 시 `resetContext()` 호출하여 새 세션 생성
-4. **에러 처리**: API 에러 시에도 context 상태를 적절히 관리 (세션 ID 보존)
-5. **타입 안정성**: TypeScript 사용 시 확장된 Context 타입 정의 준수
-6. **🔥 핵심 개선**: 이제 "k-pop" 같은 답변이 의도 분류 오류 없이 정확히 처리됨
+3. **다국어 지원**: `language` 필드를 항상 명시하고, context의 `userLanguage`와 일치시킴
+4. **언어 변경**: 언어 변경 시 새 세션 시작으로 이전 대화 컨텍스트 초기화
+5. **상태 초기화**: 새로운 대화 시작 시 `resetContext()` 호출하여 새 세션 생성
+6. **에러 처리**: API 에러 시에도 context 상태를 적절히 관리 (세션 ID 보존)
+7. **타입 안정성**: TypeScript 사용 시 확장된 Context 타입 정의 준수
+8. **🔥 핵심**: 언어별 맞춤형 메시지 제공 및 fallback 전략 (ja/zh → en, 기타 → ko)
 
 ---
 
-## 🎛️ 의도 분류 키워드
+## 🎛️ 의도 분류 키워드 (다국어)
 
+### 한국어 (ko)
 | **Intent** | **키워드** | **예시** |
 |------------|------------|----------|
 | **CREATE_ROUTE** | "추천해줘", "계획해줘", "루트 만들", "여행 계획" | "2일 서울 여행 계획해줘" |
@@ -432,53 +519,50 @@ console.log(`대화 상태: ${chatManager.getConversationState()}`);
 | **SEARCH_PLACES** | "장소", "명소", "어디", "위치", "곳" | "명동 근처 뷰티샵 어디 있어?" |
 | **GENERAL_QUESTION** | 기타 모든 질문 | "한류가 뭐야?", "K-POP 역사 알려줘" |
 
+### 영어 (en)
+| **Intent** | **키워드** | **예시** |
+|------------|------------|----------|
+| **CREATE_ROUTE** | "recommend", "suggest", "plan", "create route", "make itinerary" | "Recommend a 2-day Seoul K-POP route" |
+| **SEARCH_EXISTING_ROUTES** | "existing routes", "available routes", "find route", "search route" | "Are there existing Busan drama routes?" |
+| **SEARCH_PLACES** | "place", "location", "where", "spot", "find", "near", "around" | "Where are K-POP places near Hongdae?" |
+| **GENERAL_QUESTION** | 기타 모든 질문 | "What is BTS?", "Tell me about K-POP history" |
+
+### 일본어 (ja)
+| **Intent** | **키워드** | **예시** |
+|------------|------------|----------|
+| **CREATE_ROUTE** | "推薦", "計画", "ルート作成", "旅行プラン" | "2日間のソウルK-POPルートを推薦してください" |
+| **SEARCH_EXISTING_ROUTES** | "既存ルート", "作成済みルート", "ルート検索" | "釜山のドラマルートはありますか？" |
+| **SEARCH_PLACES** | "場所", "スポット", "どこ", "位置", "近く" | "弘大近くのK-POP場所はどこですか？" |
+| **GENERAL_QUESTION** | 기타 모든 질문 | "BTSとは何ですか？", "K-POP歴史を教えて" |
+
+### 중국어 (zh)
+| **Intent** | **키워드** | **예시** |
+|------------|------------|----------|
+| **CREATE_ROUTE** | "推荐", "计划", "路线制作", "旅行规划" | "请推荐2天首尔K-POP路线" |
+| **SEARCH_EXISTING_ROUTES** | "现有路线", "已制作路线", "路线搜索" | "有釜山戏剧路线吗？" |
+| **SEARCH_PLACES** | "地点", "景点", "哪里", "位置", "附近" | "弘大附近的K-POP地点在哪里？" |
+| **GENERAL_QUESTION** | 기타 모든 질문 | "BTS是什么？", "告诉我K-POP历史" |
+
 ---
 
 ## 📊 응답 타입별 데이터 구조
 
 | **ResponseType** | **포함 필드** | **용도** |
 |------------------|---------------|----------|
-| **QUESTION** | `message` | 추가 정보 요청 |
+| **QUESTION** | `message` | 추가 정보 요청 (다국어 지원) |
 | **ROUTE_RECOMMENDATION** | `message`, `routeRecommendation` | 새 루트 생성 완료 |
 | **EXISTING_ROUTES** | `message`, `existingRoutes[]` | 기존 루트 목록 |
 | **PLACE_INFO** | `message`, `places[]` | 장소 정보 목록 |
-| **GENERAL_INFO** | `message` | 일반 정보/답변 |
+| **GENERAL_INFO** | `message` | 일반 정보/답변 (다국어 지원) |
 
-## 🔄 주요 처리 흐름
+---
 
-1. **ChatController.sendMessage()** 
-   - 요청 로깅
-   - ChatService.processUserQuery() 호출
-   - 예외 처리 (LLMException 발생)
+## 🌍 언어별 Fallback 전략
 
-2. **ChatService.processUserQuery()**
-   - 세션 보장 및 컨텍스트 가져오기 (ConversationManager.ensureSessionAndGetContext)
-   - 상태 기반 대화 처리 확인 (requiresStatefulHandling)
-     - 상태가 있으면: handleStatefulConversation()
-     - 상태가 없으면: 의도 분류 후 의도별 핸들러 분기
-   - 의도별 핸들러 분기
-     - CREATE_ROUTE → handleCreateRouteIntent()
-     - SEARCH_EXISTING_ROUTES → handleSearchExistingRoutesIntent()  
-     - SEARCH_PLACES → handleSearchPlacesIntent()
-     - GENERAL_QUESTION → handleGeneralQuestionIntent()
-
-3. **루트 생성 플로우**
-   - 컨텍스트 추출 (ContextExtractor.extractContextFromQuery)
-   - 필수 정보 확인 (ContextExtractor.checkMissingRequiredInfo)
-   - RAG 기반 루트 추천 (recommendRouteWithRag)
-     - 일수 조정 (adjustDaysIfNeeded) - **🔧 수정됨: K_POP → "K_POP" 올바른 테마 변환**
-     - 장소 검색 (searchAndExtractPlaceIds)
-     - RouteService 호출 (createRouteByAI)
-     - 자연스러운 메시지 생성 (RagService.generateRouteRecommendationAnswer)
-   - ChatResponseBuilder를 통한 일관된 응답 생성 - **🆕 추가됨**
-
-4. **상태 기반 대화 처리** - **🆕 추가됨**
-   - AWAITING_THEME → handleThemeInput()
-   - AWAITING_REGION → handleRegionInput()  
-   - AWAITING_DAYS → handleDaysInput()
-
-5. **응답 생성 아키텍처** - **🆕 추가됨**
-   - 모든 응답 생성은 ChatResponseBuilder를 통해 일관성 보장
-   - @JsonInclude(JsonInclude.Include.NON_NULL)로 null 필드 응답에서 제외
-   - 루트 제목 개선: "서울 K-POP 2일 루트" 형태로 구체적 정보 포함
-
+- **지원 언어**: ko (한국어), en (영어), ja (일본어), zh (중국어)
+- **Fallback 규칙**: 
+  - ja/zh → en (일본어/중국어는 영어로 fallback)
+  - 기타 모든 언어 → ko (한국어 기본값)
+- **언어 코드 변환**: 
+  - chatbot 도메인: "ja", "zh" 사용
+  - Tour API 호출 시: "J", "C"로 자동 변환

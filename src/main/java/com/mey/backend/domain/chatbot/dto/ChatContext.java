@@ -46,4 +46,7 @@ public class ChatContext {
     
     @Schema(description = "대화 시작 시간 (타임스탬프)", example = "1693920000000")
     private Long conversationStartTime;
+    
+    @Schema(description = "사용자 언어", example = "ko", allowableValues = {"ko", "en", "ja", "zh"})
+    private String userLanguage;
 }

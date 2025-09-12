@@ -29,6 +29,8 @@ import java.util.List;
 public class ChatResponseBuilder {
     
     private final ConversationManager conversationManager;
+    private final MessageTemplateService messageTemplateService;
+    private final LanguageService languageService;
     
     /**
      * 기본 질문 응답을 생성합니다.
@@ -64,9 +66,10 @@ public class ChatResponseBuilder {
      * 에러 응답을 생성합니다.
      */
     public ChatResponse createErrorResponse(String message, ChatContext context) {
+        String language = context.getUserLanguage() != null ? context.getUserLanguage() : "ko";
         return ChatResponse.builder()
                 .responseType(ChatResponse.ResponseType.QUESTION)
-                .message(message + " 다시 시도해주시겠어요?")
+                .message(message + " " + messageTemplateService.getErrorSuffix(language))
                 .context(context)
                 .build();
     }
@@ -86,12 +89,13 @@ public class ChatResponseBuilder {
      * 장소 정보 응답을 생성합니다.
      */
     public ChatResponse createPlaceInfoResponse(String message, List<Place> places, ChatContext context) {
+        String language = context.getUserLanguage() != null ? context.getUserLanguage() : "ko";
         List<ChatResponse.PlaceInfo> placeInfos = places.stream()
                 .map(place -> ChatResponse.PlaceInfo.builder()
                         .placeId(place.getPlaceId())
-                        .name(place.getNameKo())
-                        .description(place.getDescriptionKo())
-                        .address(place.getAddressKo())
+                        .name(languageService.getPlaceName(place, language))
+                        .description(languageService.getPlaceDescription(place, language))
+                        .address(languageService.getPlaceAddress(place, language))
                         .themes(place.getThemes())
                         .costInfo(place.getCostInfo())
                         .build())
@@ -111,9 +115,10 @@ public class ChatResponseBuilder {
     public ChatResponse createExistingRoutesResponse(String message, 
                                                    List<com.mey.backend.domain.route.entity.Route> routes, 
                                                    ChatContext context) {
+        String language = context.getUserLanguage() != null ? context.getUserLanguage() : "ko";
         List<ChatResponse.ExistingRoute> existingRoutes = routes.stream()
                 .limit(5) // 최대 5개 루트만 반환
-                .map(this::convertRouteToExistingRoute)
+                .map(route -> convertRouteToExistingRoute(route, language))
                 .toList();
         
         return ChatResponse.builder()
@@ -163,7 +168,7 @@ public class ChatResponseBuilder {
     /**
      * Route 엔티티를 ExistingRoute DTO로 변환
      */
-    private ChatResponse.ExistingRoute convertRouteToExistingRoute(com.mey.backend.domain.route.entity.Route route) {
+    private ChatResponse.ExistingRoute convertRouteToExistingRoute(com.mey.backend.domain.route.entity.Route route, String language) {
         // Theme enum을 String으로 변환
         List<String> themeStrings = route.getThemes().stream()
                 .map(theme -> theme.getRouteTheme())
@@ -171,8 +176,8 @@ public class ChatResponseBuilder {
         
         return ChatResponse.ExistingRoute.builder()
                 .routeId(route.getId())
-                .title(route.getTitleKo())
-                .description(route.getDescriptionKo())
+                .title(languageService.getRouteTitle(route, language))
+                .description(languageService.getRouteDescription(route, language))
                 .estimatedCost(route.getTotalCost())
                 .durationMinutes(route.getTotalDurationMinutes())
                 .themes(themeStrings)
@@ -183,12 +188,7 @@ public class ChatResponseBuilder {
      * 단계별 안내 메시지 생성
      */
     public String generateStepMessage(ConversationState currentState, ChatContext context) {
-        return switch (currentState) {
-            case AWAITING_THEME -> "테마 선택이 필요해요. K-POP, K-드라마, K-푸드, K-패션 중 어떤 테마를 원하시나요?";
-            case AWAITING_REGION -> "좋습니다! " + (context.getTheme() != null ? context.getTheme().name() : "") + " 테마를 선택하셨네요. 어느 지역을 여행하고 싶으신가요?";
-            case AWAITING_DAYS -> (context.getRegion() != null ? context.getRegion() : "") + " 지역을 선택하셨네요! 몇 일 여행을 계획하고 계신가요?";
-            case READY_FOR_ROUTE -> "모든 정보가 준비되었습니다! 맞춤 루트를 생성해드릴게요.";
-            default -> "안내에 따라 정보를 입력해주세요.";
-        };
+        String language = context.getUserLanguage() != null ? context.getUserLanguage() : "ko";
+        return messageTemplateService.getStateMessage(currentState, language);
     }
 }
