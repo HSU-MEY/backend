@@ -431,7 +431,7 @@ public class ChatService {
         String missingInfo = contextExtractor.checkMissingRequiredInfo(extractedContext);
         if (missingInfo != null) {
             // 상태 기반 대화 시작 - 첫 번째 누락 항목에 따라 상태 설정
-            String language = extractedContext.getUserLanguage();
+            String language = request.getLanguage();
             ConversationState nextState;
             String question;
             
@@ -446,7 +446,7 @@ public class ChatService {
                 question = messageTemplateService.getMissingInfoMessage("days", language);
             }
             
-            return responseBuilder.createQuestionResponse(missingInfo, extractedContext, nextState, question);
+            return responseBuilder.createQuestionResponse(question, extractedContext, nextState, question);
         }
         
         // 3. RAG를 통한 루트 생성

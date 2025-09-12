@@ -44,7 +44,43 @@ public class PlaceService {
 
         Place place = placeRepository.findPlaceByPlaceId(placeId);
 
-        return tourApiClient.fetchRelatedPlaces(place.getLatitude(), place.getLongitude(), language);
+        // chatbot 언어 코드를 Tour API 언어 코드로 변환
+        String tourApiLanguage = convertToTourApiLanguage(language);
+        return tourApiClient.fetchRelatedPlaces(place.getLatitude(), place.getLongitude(), tourApiLanguage);
+    }
+    
+    /**
+     * 언어 코드 변환용 enum
+     */
+    public enum LanguageCode {
+        KOREAN("ko", "K"),
+        ENGLISH("en", "E"),
+        JAPANESE("ja", "J"),
+        CHINESE("zh", "C");
+        
+        private final String chatbotCode;
+        private final String tourApiCode;
+        
+        LanguageCode(String chatbotCode, String tourApiCode) {
+            this.chatbotCode = chatbotCode;
+            this.tourApiCode = tourApiCode;
+        }
+        
+        public static String toTourApiCode(String chatbotCode) {
+            for (LanguageCode lang : values()) {
+                if (lang.chatbotCode.equals(chatbotCode)) {
+                    return lang.tourApiCode;
+                }
+            }
+            return KOREAN.tourApiCode; // 기본값
+        }
+    }
+    
+    /**
+     * chatbot 언어 코드를 Tour API 언어 코드로 변환
+     */
+    private String convertToTourApiLanguage(String language) {
+        return LanguageCode.toTourApiCode(language);
     }
 
     @Transactional(readOnly = true)

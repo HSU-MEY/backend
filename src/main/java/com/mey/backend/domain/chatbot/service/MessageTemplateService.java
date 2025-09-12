@@ -134,6 +134,11 @@ public class MessageTemplateService {
      * 필수 정보 부족 메시지를 반환합니다.
      */
     public String getMissingInfoMessage(String infoType, String language) {
+        // null 체크
+        if (infoType == null || language == null) {
+            return MISSING_INFO_MESSAGES.get("theme").get("ko"); // 기본값
+        }
+        
         Map<String, String> messages = MISSING_INFO_MESSAGES.get(infoType);
         if (messages == null) {
             return MISSING_INFO_MESSAGES.get("theme").get("ko"); // 기본값

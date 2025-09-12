@@ -319,6 +319,9 @@ public class ContextExtractor {
      * 언어별 시스템 프롬프트를 반환합니다.
      */
     private String getSystemPromptByLanguage(String language) {
+        if (language == null) {
+            language = "ko";
+        }
         return switch (language) {
             case "ko" -> getKoreanSystemPrompt();
             case "en" -> getEnglishSystemPrompt();

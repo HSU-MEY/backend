@@ -282,6 +282,11 @@ public class RagService {
      * 언어별 장소 컨텍스트를 생성합니다.
      */
     private String createPlaceContext(com.mey.backend.domain.place.entity.Place place, String language) {
+        // null 체크 및 기본값 설정
+        if (language == null) {
+            language = "ko";
+        }
+        
         return switch (language) {
             case "ko" -> String.format("""
                     장소명: %s
@@ -359,6 +364,9 @@ public class RagService {
      * 언어별 "결과 없음" 메시지를 반환합니다.
      */
     private String getNoResultsMessage(String language) {
+        if (language == null) {
+            language = "ko";
+        }
         return switch (language) {
             case "ko" -> "죄송합니다. 요청하신 조건에 맞는 루트 정보를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?";
             case "en" -> "Sorry, I couldn't find route information matching your criteria. Would you like to try different themes or regions?";
@@ -372,6 +380,9 @@ public class RagService {
      * 언어별 시스템 오류 메시지를 반환합니다.
      */
     private String getSystemErrorMessage(String language) {
+        if (language == null) {
+            language = "ko";
+        }
         return switch (language) {
             case "ko" -> "죄송합니다. 현재 추천 시스템에 문제가 있습니다. 잠시 후 다시 시도해주세요.";
             case "en" -> "Sorry, there's currently an issue with the recommendation system. Please try again later.";
@@ -385,6 +396,9 @@ public class RagService {
      * 언어별 루트 추천 시스템 프롬프트를 반환합니다.
      */
     private String getRouteRecommendationSystemPrompt(String language) {
+        if (language == null) {
+            language = "ko";
+        }
         return switch (language) {
             case "ko" -> """
                 당신은 친근하고 전문적인 한류 여행 가이드입니다. 
@@ -450,6 +464,9 @@ public class RagService {
      * 언어별 장소 기반 루트 추천 시스템 프롬프트를 반환합니다.
      */
     private String getPlaceBasedRouteRecommendationSystemPrompt(String language) {
+        if (language == null) {
+            language = "ko";
+        }
         return switch (language) {
             case "ko" -> """
                 당신은 친근하고 전문적인 한류 여행 가이드입니다.

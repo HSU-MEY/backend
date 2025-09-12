@@ -90,6 +90,9 @@ public class IntentClassifier {
         String lowerQuery = query.toLowerCase();
         
         // 언어별 키워드로 의도 분류
+        if (language == null) {
+            language = "ko";
+        }
         return switch (language) {
             case "ko" -> fallbackClassificationKorean(lowerQuery);
             case "en" -> fallbackClassificationEnglish(lowerQuery);
@@ -102,98 +105,98 @@ public class IntentClassifier {
     private IntentClassificationResult fallbackClassificationKorean(String lowerQuery) {
         // CREATE_ROUTE 키워드
         if (containsAnyKeyword(lowerQuery, "추천", "계획", "루트 만들", "여행 계획", "일정", "만들어줘")) {
-            return new IntentClassificationResult("CREATE_ROUTE", 0.8, "키워드 기반 분류: 루트 생성 요청");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.CREATE_ROUTE, 0.8, "키워드 기반 분류: 루트 생성 요청");
         }
         
         // SEARCH_EXISTING_ROUTES 키워드
         if (containsAnyKeyword(lowerQuery, "기존", "만들어진", "루트 찾", "루트 검색", "있는 루트", "만든 루트")) {
-            return new IntentClassificationResult("SEARCH_EXISTING_ROUTES", 0.8, "키워드 기반 분류: 기존 루트 검색");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_EXISTING_ROUTES, 0.8, "키워드 기반 분류: 기존 루트 검색");
         }
         
         // SEARCH_PLACES 키워드 (근처 키워드가 있으면 우선 처리)
         if (containsAnyKeyword(lowerQuery, "근처")) {
-            return new IntentClassificationResult("SEARCH_PLACES", 0.9, "키워드 기반 분류: 근처 장소 검색");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_PLACES, 0.9, "키워드 기반 분류: 근처 장소 검색");
         }
         
         // SEARCH_PLACES 기타 키워드
         if (containsAnyKeyword(lowerQuery, "장소", "명소", "어디", "위치", "곳", "찾아")) {
-            return new IntentClassificationResult("SEARCH_PLACES", 0.8, "키워드 기반 분류: 장소 검색");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_PLACES, 0.8, "키워드 기반 분류: 장소 검색");
         }
         
         // 기본값: GENERAL_QUESTION
-        return new IntentClassificationResult("GENERAL_QUESTION", 0.7, "키워드 기반 분류: 일반 질문");
+        return new IntentClassificationResult(IntentClassificationResult.UserIntent.GENERAL_QUESTION, 0.7, "키워드 기반 분류: 일반 질문");
     }
     
     private IntentClassificationResult fallbackClassificationEnglish(String lowerQuery) {
         // CREATE_ROUTE keywords
         if (containsAnyKeyword(lowerQuery, "recommend", "suggest", "plan", "create route", "make itinerary", "trip planning")) {
-            return new IntentClassificationResult("CREATE_ROUTE", 0.8, "Keyword-based classification: Route creation request");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.CREATE_ROUTE, 0.8, "Keyword-based classification: Route creation request");
         }
         
         // SEARCH_EXISTING_ROUTES keywords
         if (containsAnyKeyword(lowerQuery, "existing", "available routes", "find route", "search route", "show routes")) {
-            return new IntentClassificationResult("SEARCH_EXISTING_ROUTES", 0.8, "Keyword-based classification: Existing route search");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_EXISTING_ROUTES, 0.8, "Keyword-based classification: Existing route search");
         }
         
         // SEARCH_PLACES keywords
         if (containsAnyKeyword(lowerQuery, "near", "nearby", "around")) {
-            return new IntentClassificationResult("SEARCH_PLACES", 0.9, "Keyword-based classification: Nearby place search");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_PLACES, 0.9, "Keyword-based classification: Nearby place search");
         }
         
         if (containsAnyKeyword(lowerQuery, "place", "location", "where", "find", "spot", "attraction")) {
-            return new IntentClassificationResult("SEARCH_PLACES", 0.8, "Keyword-based classification: Place search");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_PLACES, 0.8, "Keyword-based classification: Place search");
         }
         
         // Default: GENERAL_QUESTION
-        return new IntentClassificationResult("GENERAL_QUESTION", 0.7, "Keyword-based classification: General question");
+        return new IntentClassificationResult(IntentClassificationResult.UserIntent.GENERAL_QUESTION, 0.7, "Keyword-based classification: General question");
     }
     
     private IntentClassificationResult fallbackClassificationJapanese(String lowerQuery) {
         // CREATE_ROUTE keywords
         if (containsAnyKeyword(lowerQuery, "おすすめ", "計画", "ルート作", "旅行計画", "スケジュール", "作って")) {
-            return new IntentClassificationResult("CREATE_ROUTE", 0.8, "キーワードベース分類: ルート作成要求");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.CREATE_ROUTE, 0.8, "キーワードベース分類: ルート作成要求");
         }
         
         // SEARCH_EXISTING_ROUTES keywords
         if (containsAnyKeyword(lowerQuery, "既存", "作られた", "ルート探", "ルート検索", "あるルート")) {
-            return new IntentClassificationResult("SEARCH_EXISTING_ROUTES", 0.8, "キーワードベース分類: 既存ルート検索");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_EXISTING_ROUTES, 0.8, "キーワードベース分類: 既存ルート検索");
         }
         
         // SEARCH_PLACES keywords
         if (containsAnyKeyword(lowerQuery, "近く", "付近")) {
-            return new IntentClassificationResult("SEARCH_PLACES", 0.9, "キーワードベース分類: 近くの場所検索");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_PLACES, 0.9, "キーワードベース分類: 近くの場所検索");
         }
         
         if (containsAnyKeyword(lowerQuery, "場所", "名所", "どこ", "位置", "探して", "スポット")) {
-            return new IntentClassificationResult("SEARCH_PLACES", 0.8, "キーワードベース分類: 場所検索");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_PLACES, 0.8, "キーワードベース分類: 場所検索");
         }
         
         // Default: GENERAL_QUESTION
-        return new IntentClassificationResult("GENERAL_QUESTION", 0.7, "キーワードベース分類: 一般的な質問");
+        return new IntentClassificationResult(IntentClassificationResult.UserIntent.GENERAL_QUESTION, 0.7, "キーワードベース分類: 一般的な質問");
     }
     
     private IntentClassificationResult fallbackClassificationChinese(String lowerQuery) {
         // CREATE_ROUTE keywords
         if (containsAnyKeyword(lowerQuery, "推荐", "计划", "路线制", "旅行计划", "行程", "制作")) {
-            return new IntentClassificationResult("CREATE_ROUTE", 0.8, "基于关键词的分类: 路线创建请求");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.CREATE_ROUTE, 0.8, "基于关键词的分类: 路线创建请求");
         }
         
         // SEARCH_EXISTING_ROUTES keywords
         if (containsAnyKeyword(lowerQuery, "现有", "已制作", "路线查找", "路线搜索", "现有路线")) {
-            return new IntentClassificationResult("SEARCH_EXISTING_ROUTES", 0.8, "基于关键词的分类: 现有路线搜索");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_EXISTING_ROUTES, 0.8, "基于关键词的分类: 现有路线搜索");
         }
         
         // SEARCH_PLACES keywords
         if (containsAnyKeyword(lowerQuery, "附近", "周围")) {
-            return new IntentClassificationResult("SEARCH_PLACES", 0.9, "基于关键词的分类: 附近地点搜索");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_PLACES, 0.9, "基于关键词的分类: 附近地点搜索");
         }
         
         if (containsAnyKeyword(lowerQuery, "地点", "景点", "哪里", "位置", "找", "地方")) {
-            return new IntentClassificationResult("SEARCH_PLACES", 0.8, "基于关键词的分类: 地点搜索");
+            return new IntentClassificationResult(IntentClassificationResult.UserIntent.SEARCH_PLACES, 0.8, "基于关键词的分类: 地点搜索");
         }
         
         // Default: GENERAL_QUESTION
-        return new IntentClassificationResult("GENERAL_QUESTION", 0.7, "基于关键词的分类: 一般问题");
+        return new IntentClassificationResult(IntentClassificationResult.UserIntent.GENERAL_QUESTION, 0.7, "基于关键词的分类: 一般问题");
     }
     
     /**
@@ -228,6 +231,9 @@ public class IntentClassifier {
      * 언어별 시스템 프롬프트를 반환합니다.
      */
     private String getSystemPromptByLanguage(String language) {
+        if (language == null) {
+            language = "ko";
+        }
         return switch (language) {
             case "ko" -> getKoreanSystemPrompt();
             case "en" -> getEnglishSystemPrompt();

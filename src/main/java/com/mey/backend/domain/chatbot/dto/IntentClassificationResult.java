@@ -3,14 +3,12 @@ package com.mey.backend.domain.chatbot.dto;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
-import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 
 @Schema(description = "LLM 기반 의도 분류 결과")
 @Getter
 @Builder
-@AllArgsConstructor
 public class IntentClassificationResult {
     
     @Schema(description = "분류된 의도", example = "CREATE_ROUTE")
@@ -28,6 +26,12 @@ public class IntentClassificationResult {
             @JsonProperty("confidence") double confidence, 
             @JsonProperty("reasoning") String reasoning) {
         this.intent = UserIntent.fromString(intent);
+        this.confidence = confidence;
+        this.reasoning = reasoning;
+    }
+    
+    public IntentClassificationResult(UserIntent intent, double confidence, String reasoning) {
+        this.intent = intent;
         this.confidence = confidence;
         this.reasoning = reasoning;
     }
