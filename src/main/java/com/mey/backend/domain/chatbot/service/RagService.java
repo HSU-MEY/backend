@@ -50,12 +50,19 @@ public class RagService {
      * @return 출처 정보가 제거된 루트 추천 응답
      */
     public String generateRouteRecommendationAnswer(String question, List<DocumentSearchResult> relevantDocs) {
-        log.debug("루트 추천 응답 생성 시작: '{}'", question);
+        return generateRouteRecommendationAnswer(question, relevantDocs, "ko"); // 기본 한국어
+    }
+
+    /**
+     * 언어를 고려한 한류 루트 추천 답변을 생성합니다.
+     */
+    public String generateRouteRecommendationAnswer(String question, List<DocumentSearchResult> relevantDocs, String language) {
+        log.debug("루트 추천 응답 생성 시작: '{}' (언어: {})", question, language);
 
         // 관련 문서 검색 또는 사용
         if (relevantDocs.isEmpty()) {
             log.info("관련 정보를 찾을 수 없음: '{}'", question);
-            return "죄송합니다. 요청하신 조건에 맞는 루트 정보를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?";
+            return getNoResultsMessage(language);
         }
 
         // 관련 문서의 내용을 컨텍스트로 결합 (번호 없이)
@@ -65,21 +72,8 @@ public class RagService {
         
         log.debug("컨텍스트 크기: {} 문자", context.length());
 
-        // 루트 추천에 특화된 시스템 프롬프트 생성
-        String systemPromptText = String.format("""
-            당신은 친근하고 전문적인 한류 여행 가이드입니다. 
-            사용자의 질문에 대해 주어진 루트 정보를 바탕으로 자연스럽고 매력적인 추천을 해주세요.
-            
-            다음 원칙을 따라주세요:
-            1. 정보 출처나 참고 번호는 절대 언급하지 마세요
-            2. 자연스럽고 친근한 톤으로 응답하세요
-            3. 루트의 특징과 매력을 강조하세요
-            4. 구체적인 추천 이유를 포함하세요
-            5. 2-3문장으로 간결하게 작성하세요
-            
-            루트 정보:
-            %s
-            """, context);
+        // 언어별 루트 추천 시스템 프롬프트 생성
+        String systemPromptText = String.format(getRouteRecommendationSystemPrompt(language), context);
 
         // LLM을 통한 응답 생성
         try {
@@ -93,7 +87,7 @@ public class RagService {
             return aiAnswer;
         } catch (Exception e) {
             log.error("AI 모델 호출 중 오류 발생: {}", e.getMessage(), e);
-            return "죄송합니다. 현재 추천 시스템에 문제가 있습니다. 잠시 후 다시 시도해주세요.";
+            return getSystemErrorMessage(language);
         }
     }
 
@@ -243,52 +237,29 @@ public class RagService {
      * @return 모든 장소를 반영한 루트 추천 응답
      */
     public String generateRouteRecommendationAnswerWithPlaces(String question, java.util.List<com.mey.backend.domain.place.entity.Place> places) {
-        log.debug("루트 추천 응답 생성 시작 (장소 기반): '{}', 장소 수: {}", question, places.size());
+        return generateRouteRecommendationAnswerWithPlaces(question, places, "ko"); // 기본 한국어
+    }
+
+    /**
+     * 언어를 고려한 실제 루트의 장소들 기반 루트 추천 메시지를 생성합니다.
+     */
+    public String generateRouteRecommendationAnswerWithPlaces(String question, java.util.List<com.mey.backend.domain.place.entity.Place> places, String language) {
+        log.debug("루트 추천 응답 생성 시작 (장소 기반): '{}', 장소 수: {}, 언어: {}", question, places.size(), language);
 
         if (places.isEmpty()) {
             log.info("장소 정보 없음: '{}'", question);
-            return "죄송합니다. 요청하신 조건에 맞는 루트 정보를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?";
+            return getNoResultsMessage(language);
         }
 
-        // 장소 정보를 순서대로 정렬하고 컨텍스트 생성
+        // 장소 정보를 순서대로 정렬하고 언어별 컨텍스트 생성
         String context = places.stream()
-                .map(place -> String.format("""
-                        장소명: %s
-                        설명: %s
-                        주소: %s
-                        지역: %s
-                        테마: %s
-                        비용정보: %s
-                        연락처: %s
-                        """,
-                        place.getNameKo(),
-                        place.getDescriptionKo(),
-                        place.getAddressKo(),
-                        place.getRegion().getNameKo(),
-                        String.join(", ", place.getThemes()),
-                        place.getCostInfo(),
-                        place.getContactInfo() != null ? place.getContactInfo() : "정보 없음"
-                ))
+                .map(place -> createPlaceContext(place, language))
                 .collect(java.util.stream.Collectors.joining("\n"));
         
         log.debug("컨텍스트 크기: {} 문자, 장소 수: {}", context.length(), places.size());
 
-        // 루트 추천에 특화된 시스템 프롬프트 생성
-        String systemPromptText = String.format("""
-            당신은 친근하고 전문적인 한류 여행 가이드입니다.
-            사용자의 질문에 대해 주어진 루트 정보를 바탕으로 자연스럽고 매력적인 추천을 해주세요.
-
-            다음 원칙을 따라주세요:
-            1. 장소들은 제공된 순서대로 방문하는 것이 최적화된 루트입니다
-            2. 여행 일수에 맞게 일차별로 구성하되, 적절한 개수의 대표 장소들을 선별하여 소개해주세요
-            3. 각 장소의 특징과 매력을 간략하게 설명해주세요
-            4. 정보 출처나 참고 번호는 절대 언급하지 마세요
-            5. 자연스럽고 친근한 톤으로 작성해주세요
-            6. 2-3문단 정도의 적절한 길이로 작성해주세요
-
-            루트 정보:
-            %s
-            """, context);
+        // 언어별 루트 추천 시스템 프롬프트 생성
+        String systemPromptText = String.format(getPlaceBasedRouteRecommendationSystemPrompt(language), context);
 
         // LLM을 통한 응답 생성
         try {
@@ -303,8 +274,245 @@ public class RagService {
 
         } catch (Exception e) {
             log.error("AI 응답 생성 중 오류 발생", e);
-            return "루트 추천 정보를 생성하는 중에 오류가 발생했습니다. 다시 시도해주시겠어요?";
+            return getSystemErrorMessage(language);
         }
+    }
+    
+    /**
+     * 언어별 장소 컨텍스트를 생성합니다.
+     */
+    private String createPlaceContext(com.mey.backend.domain.place.entity.Place place, String language) {
+        return switch (language) {
+            case "ko" -> String.format("""
+                    장소명: %s
+                    설명: %s
+                    주소: %s
+                    지역: %s
+                    테마: %s
+                    비용정보: %s
+                    연락처: %s
+                    """,
+                    place.getNameKo(),
+                    place.getDescriptionKo(),
+                    place.getAddressKo(),
+                    place.getRegion().getNameKo(),
+                    String.join(", ", place.getThemes()),
+                    place.getCostInfo(),
+                    place.getContactInfo() != null ? place.getContactInfo() : "정보 없음"
+            );
+            case "en" -> String.format("""
+                    Place Name: %s
+                    Description: %s
+                    Address: %s
+                    Region: %s
+                    Theme: %s
+                    Cost Info: %s
+                    Contact: %s
+                    """,
+                    place.getNameEn() != null ? place.getNameEn() : place.getNameKo(),
+                    place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo(),
+                    place.getAddressKo(), // Address is only available in Korean
+                    place.getRegion().getNameKo(),
+                    String.join(", ", place.getThemes()),
+                    place.getCostInfo(),
+                    place.getContactInfo() != null ? place.getContactInfo() : "No information"
+            );
+            case "ja" -> String.format("""
+                    場所名: %s
+                    説明: %s
+                    住所: %s
+                    地域: %s
+                    テーマ: %s
+                    費用情報: %s
+                    連絡先: %s
+                    """,
+                    place.getNameEn() != null ? place.getNameEn() : place.getNameKo(), // Fallback to English
+                    place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo(),
+                    place.getAddressKo(),
+                    place.getRegion().getNameKo(),
+                    String.join(", ", place.getThemes()),
+                    place.getCostInfo(),
+                    place.getContactInfo() != null ? place.getContactInfo() : "情報なし"
+            );
+            case "zh" -> String.format("""
+                    地点名称: %s
+                    描述: %s
+                    地址: %s
+                    地区: %s
+                    主题: %s
+                    费用信息: %s
+                    联系方式: %s
+                    """,
+                    place.getNameEn() != null ? place.getNameEn() : place.getNameKo(), // Fallback to English
+                    place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo(),
+                    place.getAddressKo(),
+                    place.getRegion().getNameKo(),
+                    String.join(", ", place.getThemes()),
+                    place.getCostInfo(),
+                    place.getContactInfo() != null ? place.getContactInfo() : "无信息"
+            );
+            default -> createPlaceContext(place, "ko"); // 기본값
+        };
+    }
+    
+    /**
+     * 언어별 "결과 없음" 메시지를 반환합니다.
+     */
+    private String getNoResultsMessage(String language) {
+        return switch (language) {
+            case "ko" -> "죄송합니다. 요청하신 조건에 맞는 루트 정보를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?";
+            case "en" -> "Sorry, I couldn't find route information matching your criteria. Would you like to try different themes or regions?";
+            case "ja" -> "申し訳ございません。お客様の条件に合うルート情報が見つかりませんでした。他のテーマや地域をお試しいただけますか？";
+            case "zh" -> "抱歉，找不到符合您条件的路线信息。您想尝试其他主题或地区吗？";
+            default -> getNoResultsMessage("ko");
+        };
+    }
+    
+    /**
+     * 언어별 시스템 오류 메시지를 반환합니다.
+     */
+    private String getSystemErrorMessage(String language) {
+        return switch (language) {
+            case "ko" -> "죄송합니다. 현재 추천 시스템에 문제가 있습니다. 잠시 후 다시 시도해주세요.";
+            case "en" -> "Sorry, there's currently an issue with the recommendation system. Please try again later.";
+            case "ja" -> "申し訳ございません。現在、推薦システムに問題があります。しばらくしてからもう一度お試しください。";
+            case "zh" -> "抱歉，推荐系统目前有问题。请稍后再试。";
+            default -> getSystemErrorMessage("ko");
+        };
+    }
+    
+    /**
+     * 언어별 루트 추천 시스템 프롬프트를 반환합니다.
+     */
+    private String getRouteRecommendationSystemPrompt(String language) {
+        return switch (language) {
+            case "ko" -> """
+                당신은 친근하고 전문적인 한류 여행 가이드입니다. 
+                사용자의 질문에 대해 주어진 루트 정보를 바탕으로 자연스럽고 매력적인 추천을 해주세요.
+                
+                다음 원칙을 따라주세요:
+                1. 정보 출처나 참고 번호는 절대 언급하지 마세요
+                2. 자연스럽고 친근한 톤으로 응답하세요
+                3. 루트의 특징과 매력을 강조하세요
+                4. 구체적인 추천 이유를 포함하세요
+                5. 2-3문장으로 간결하게 작성하세요
+                
+                루트 정보:
+                %s
+                """;
+            case "en" -> """
+                You are a friendly and professional Korean Wave travel guide.
+                Please provide natural and attractive recommendations based on the given route information in response to user questions.
+                
+                Please follow these principles:
+                1. Never mention information sources or reference numbers
+                2. Respond in a natural and friendly tone
+                3. Emphasize the features and attractions of the route
+                4. Include specific reasons for recommendations
+                5. Write concisely in 2-3 sentences
+                
+                Route Information:
+                %s
+                """;
+            case "ja" -> """
+                あなたは親しみやすく専門的な韓流旅行ガイドです。
+                与えられたルート情報に基づいて、ユーザーの質問に対して自然で魅力的な推薦をしてください。
+                
+                以下の原則に従ってください：
+                1. 情報源や参考番号は絶対に言及しないでください
+                2. 自然で親しみやすいトーンで応答してください
+                3. ルートの特徴と魅力を強調してください
+                4. 具体的な推薦理由を含めてください
+                5. 2-3文で簡潔に書いてください
+                
+                ルート情報：
+                %s
+                """;
+            case "zh" -> """
+                您是一位友善且专业的韩流旅行向导。
+                请基于提供的路线信息，对用户的问题给出自然且有吸引力的推荐。
+                
+                请遵循以下原则：
+                1. 绝不提及信息来源或参考编号
+                2. 以自然友好的语调回应
+                3. 强调路线的特色和魅力
+                4. 包含具体的推荐理由
+                5. 用2-3句话简洁地写出
+                
+                路线信息：
+                %s
+                """;
+            default -> getRouteRecommendationSystemPrompt("ko");
+        };
+    }
+    
+    /**
+     * 언어별 장소 기반 루트 추천 시스템 프롬프트를 반환합니다.
+     */
+    private String getPlaceBasedRouteRecommendationSystemPrompt(String language) {
+        return switch (language) {
+            case "ko" -> """
+                당신은 친근하고 전문적인 한류 여행 가이드입니다.
+                사용자의 질문에 대해 주어진 루트 정보를 바탕으로 자연스럽고 매력적인 추천을 해주세요.
+
+                다음 원칙을 따라주세요:
+                1. 장소들은 제공된 순서대로 방문하는 것이 최적화된 루트입니다
+                2. 여행 일수에 맞게 일차별로 구성하되, 적절한 개수의 대표 장소들을 선별하여 소개해주세요
+                3. 각 장소의 특징과 매력을 간략하게 설명해주세요
+                4. 정보 출처나 참고 번호는 절대 언급하지 마세요
+                5. 자연스럽고 친근한 톤으로 작성해주세요
+                6. 2-3문단 정도의 적절한 길이로 작성해주세요
+
+                루트 정보:
+                %s
+                """;
+            case "en" -> """
+                You are a friendly and professional Korean Wave travel guide.
+                Please provide natural and attractive recommendations based on the given route information in response to user questions.
+
+                Please follow these principles:
+                1. The places should be visited in the provided order as it's an optimized route
+                2. Organize by daily itinerary according to travel days, selecting appropriate representative places to introduce
+                3. Briefly describe the features and attractions of each place
+                4. Never mention information sources or reference numbers
+                5. Write in a natural and friendly tone
+                6. Write in an appropriate length of 2-3 paragraphs
+
+                Route Information:
+                %s
+                """;
+            case "ja" -> """
+                あなたは親しみやすく専門的な韓流旅行ガイドです。
+                与えられたルート情報に基づいて、ユーザーの質問に対して自然で魅力的な推薦をしてください。
+
+                以下の原則に従ってください：
+                1. 場所は提供された順序で訪問するのが最適化されたルートです
+                2. 旅行日数に合わせて日別に構成し、適切な数の代表的な場所を選んで紹介してください
+                3. 各場所の特徴と魅力を簡潔に説明してください
+                4. 情報源や参考番号は絶対に言及しないでください
+                5. 自然で親しみやすいトーンで書いてください
+                6. 2-3段落程度の適切な長さで書いてください
+
+                ルート情報：
+                %s
+                """;
+            case "zh" -> """
+                您是一位友善且专业的韩流旅行向导。
+                请基于提供的路线信息，对用户的问题给出自然且有吸引力的推荐。
+
+                请遵循以下原则：
+                1. 地点应按提供的顺序参观，这是优化的路线
+                2. 根据旅行天数按日安排，选择适当数量的代表性地点介绍
+                3. 简要描述每个地点的特色和魅力
+                4. 绝不提及信息来源或参考编号
+                5. 以自然友好的语调书写
+                6. 以2-3段的适当篇幅书写
+
+                路线信息：
+                %s
+                """;
+            default -> getPlaceBasedRouteRecommendationSystemPrompt("ko");
+        };
     }
 
 }

@@ -44,35 +44,15 @@ public class ContextExtractor {
      * 사용자 질문에서 전체 컨텍스트를 추출합니다.
      */
     public ChatContext extractContextFromQuery(String query, ChatContext existingContext) {
-        String systemPrompt = """
-            당신은 사용자 질문에서 한류 루트 추천에 필요한 정보를 추출하는 전문가입니다.
-            다음 정보를 JSON 형태로 추출해주세요:
-            - theme: 테마 ("KDRAMA", "KPOP", "KFOOD", "KFASHION" 중 하나, 정확히 이 값들 사용)
-            - region: 지역명 (서울, 부산 등)
-            - budget: 예산 (숫자만, 원 단위)
-            - preferences: 특별 선호사항
-            - durationMinutes: 소요 시간 (분 단위)
-            - days: 여행 일수 (1, 2, 3 등의 숫자)
-            
-            기존 컨텍스트가 있다면 이를 기반으로 새로운 정보만 업데이트하세요.
-            정보가 없거나 추출할 수 없으면 null로 설정하세요.
-            
-            테마 변환 규칙:
-            - "K-POP", "케이팝", "kpop" → "KPOP"
-            - "K-드라마", "케이드라마", "kdrama" → "KDRAMA"  
-            - "K-푸드", "케이푸드", "kfood" → "KFOOD"
-            - "K-패션", "케이패션", "kfashion" → "KFASHION"
-            
-            응답 형식 (반드시 유효한 JSON):
-            {
-                "theme": "KPOP",
-                "region": "서울",
-                "budget": 50000,
-                "preferences": null,
-                "durationMinutes": null,
-                "days": 2
-            }
-            """;
+        String language = existingContext != null ? existingContext.getUserLanguage() : "ko";
+        return extractContextFromQuery(query, existingContext, language);
+    }
+    
+    /**
+     * 언어를 고려하여 사용자 질문에서 전체 컨텍스트를 추출합니다.
+     */
+    public ChatContext extractContextFromQuery(String query, ChatContext existingContext, String language) {
+        String systemPrompt = getSystemPromptByLanguage(language);
         
         String contextInfo = existingContext != null ? 
             "기존 컨텍스트: " + convertContextToString(existingContext) : "기존 컨텍스트 없음";
@@ -333,5 +313,146 @@ public class ContextExtractor {
                 .build();
 
         return chatModel.call(prompt);
+    }
+    
+    /**
+     * 언어별 시스템 프롬프트를 반환합니다.
+     */
+    private String getSystemPromptByLanguage(String language) {
+        return switch (language) {
+            case "ko" -> getKoreanSystemPrompt();
+            case "en" -> getEnglishSystemPrompt();
+            case "ja" -> getJapaneseSystemPrompt();
+            case "zh" -> getChineseSystemPrompt();
+            default -> getKoreanSystemPrompt();
+        };
+    }
+    
+    private String getKoreanSystemPrompt() {
+        return """
+            당신은 사용자 질문에서 한류 루트 추천에 필요한 정보를 추출하는 전문가입니다.
+            다음 정보를 JSON 형태로 추출해주세요:
+            - theme: 테마 ("KDRAMA", "KPOP", "KFOOD", "KFASHION" 중 하나, 정확히 이 값들 사용)
+            - region: 지역명 (서울, 부산 등)
+            - budget: 예산 (숫자만, 원 단위)
+            - preferences: 특별 선호사항
+            - durationMinutes: 소요 시간 (분 단위)
+            - days: 여행 일수 (1, 2, 3 등의 숫자)
+            
+            기존 컨텍스트가 있다면 이를 기반으로 새로운 정보만 업데이트하세요.
+            정보가 없거나 추출할 수 없으면 null로 설정하세요.
+            
+            테마 변환 규칙:
+            - "K-POP", "케이팝", "kpop" → "KPOP"
+            - "K-드라마", "케이드라마", "kdrama" → "KDRAMA"  
+            - "K-푸드", "케이푸드", "kfood" → "KFOOD"
+            - "K-패션", "케이패션", "kfashion" → "KFASHION"
+            
+            응답 형식 (반드시 유효한 JSON):
+            {
+                "theme": "KPOP",
+                "region": "서울",
+                "budget": 50000,
+                "preferences": null,
+                "durationMinutes": null,
+                "days": 2
+            }
+            """;
+    }
+    
+    private String getEnglishSystemPrompt() {
+        return """
+            You are an expert at extracting information needed for Korean Wave route recommendations from user questions.
+            Please extract the following information in JSON format:
+            - theme: Theme ("KDRAMA", "KPOP", "KFOOD", "KFASHION" - use exactly these values)
+            - region: Region name (Seoul, Busan, etc.)
+            - budget: Budget (numbers only, in KRW)
+            - preferences: Special preferences
+            - durationMinutes: Duration in minutes
+            - days: Number of travel days (numbers like 1, 2, 3)
+            
+            If there is existing context, update only new information based on it.
+            If information is not available or cannot be extracted, set it to null.
+            
+            Theme conversion rules:
+            - "K-POP", "kpop", "k-pop" → "KPOP"
+            - "K-Drama", "kdrama", "k-drama" → "KDRAMA"  
+            - "K-Food", "kfood", "k-food" → "KFOOD"
+            - "K-Fashion", "kfashion", "k-fashion" → "KFASHION"
+            
+            Response format (must be valid JSON):
+            {
+                "theme": "KPOP",
+                "region": "Seoul",
+                "budget": 50000,
+                "preferences": null,
+                "durationMinutes": null,
+                "days": 2
+            }
+            """;
+    }
+    
+    private String getJapaneseSystemPrompt() {
+        return """
+            あなたは韓流ルート推薦に必要な情報をユーザーの質問から抽出する専門家です。
+            以下の情報をJSON形式で抽出してください：
+            - theme: テーマ ("KDRAMA", "KPOP", "KFOOD", "KFASHION" のいずれか、正確にこれらの値を使用)
+            - region: 地域名 (ソウル、釜山など)
+            - budget: 予算 (数字のみ、ウォン単位)
+            - preferences: 特別な好み
+            - durationMinutes: 所要時間 (分単位)
+            - days: 旅行日数 (1, 2, 3などの数字)
+            
+            既存のコンテキストがある場合は、それを基に新しい情報のみを更新してください。
+            情報がないか抽出できない場合は、nullに設定してください。
+            
+            テーマ変換ルール:
+            - "K-POP", "ケイポップ", "kpop" → "KPOP"
+            - "K-ドラマ", "ケイドラマ", "kdrama" → "KDRAMA"  
+            - "K-フード", "ケイフード", "kfood" → "KFOOD"
+            - "K-ファッション", "ケイファッション", "kfashion" → "KFASHION"
+            
+            応答形式 (有効なJSONである必要があります):
+            {
+                "theme": "KPOP",
+                "region": "ソウル",
+                "budget": 50000,
+                "preferences": null,
+                "durationMinutes": null,
+                "days": 2
+            }
+            """;
+    }
+    
+    private String getChineseSystemPrompt() {
+        return """
+            您是从用户问题中提取韩流路线推荐所需信息的专家。
+            请以JSON格式提取以下信息：
+            - theme: 主题 ("KDRAMA", "KPOP", "KFOOD", "KFASHION" 中的一个，请准确使用这些值)
+            - region: 地区名称 (首尔、釜山等)
+            - budget: 预算 (仅数字，韩元单位)
+            - preferences: 特殊偏好
+            - durationMinutes: 持续时间 (分钟)
+            - days: 旅行天数 (1, 2, 3等数字)
+            
+            如果有现有上下文，请基于它仅更新新信息。
+            如果信息不可用或无法提取，请设置为null。
+            
+            主题转换规则:
+            - "K-POP", "韩流音乐", "kpop" → "KPOP"
+            - "K-Drama", "韩剧", "kdrama" → "KDRAMA"  
+            - "K-Food", "韩食", "kfood" → "KFOOD"
+            - "K-Fashion", "韩流时尚", "kfashion" → "KFASHION"
+            
+            响应格式 (必须是有效的JSON):
+            {
+                "theme": "KPOP",
+                "region": "首尔",
+                "budget": 50000,
+                "preferences": null,
+                "durationMinutes": null,
+                "days": 2
+            }
+            """;
     }
 }

@@ -34,6 +34,8 @@ public class ChatService {
     private final IntentClassifier intentClassifier;
     private final ContextExtractor contextExtractor;
     private final ChatResponseBuilder responseBuilder;
+    private final LanguageService languageService;
+    private final MessageTemplateService messageTemplateService;
 
     @EventListener(ApplicationReadyEvent.class)
     @Transactional(readOnly = true)
@@ -86,26 +88,31 @@ public class ChatService {
      * 상태 기반 대화 처리를 지원하며, 세션 연속성을 보장합니다.
      */
     public ChatResponse processUserQuery(ChatRequest request) {
-        log.info("Processing user query: {}", request.getQuery());
+        log.info("Processing user query: {} (language: {})", request.getQuery(), request.getLanguage());
 
-        // 1. 세션 보장 및 컨텍스트 가져오기
+        // 1. 언어 검증 및 설정
+        String validatedLanguage = languageService.validateAndGetLanguage(request.getLanguage());
+        log.info("Validated language: {}", validatedLanguage);
+
+        // 2. 세션 보장 및 컨텍스트 가져오기 (언어 정보 포함)
         ChatContext context = conversationManager.ensureSessionAndGetContext(request);
-        log.info("Current conversation state: {}, SessionId: {}",
-                context.getConversationState(), context.getSessionId());
+        context = context.toBuilder().userLanguage(validatedLanguage).build();
+        log.info("Current conversation state: {}, SessionId: {}, Language: {}",
+                context.getConversationState(), context.getSessionId(), context.getUserLanguage());
 
-        // 2. 상태 기반 대화 처리
+        // 3. 상태 기반 대화 처리
         if (conversationManager.requiresStatefulHandling(context)) {
             return handleStatefulConversation(request, context);
         }
 
-        // 3. 초기 상태 또는 상태 없음 - 의도 분류 수행
-        IntentClassificationResult classificationResult = intentClassifier.classifyUserIntent(request.getQuery());
+        // 4. 초기 상태 또는 상태 없음 - 의도 분류 수행 (언어 고려)
+        IntentClassificationResult classificationResult = intentClassifier.classifyUserIntent(request.getQuery(), validatedLanguage);
         log.info("LLM 의도 분류 결과: {} (신뢰도: {}, 근거: {})",
                 classificationResult.getIntent(),
                 classificationResult.getConfidence(),
                 classificationResult.getReasoning());
 
-        // 4. 의도별 처리
+        // 5. 의도별 처리
         return switch (classificationResult.getIntent()) {
             case CREATE_ROUTE -> handleCreateRouteIntent(request.toBuilder().context(context).build());
             case SEARCH_EXISTING_ROUTES -> handleSearchExistingRoutesIntent(request.toBuilder().context(context).build());
@@ -140,11 +147,12 @@ public class ChatService {
         ChatContext updatedContext = contextExtractor.extractThemeFromQuery(request.getQuery(), context);
 
         if (updatedContext.getTheme() == null) {
+            String language = context.getUserLanguage();
             return responseBuilder.createQuestionResponse(
-                    "테마를 인식하지 못했습니다. K-POP, K-드라마, K-푸드, K-패션 중에서 선택해주세요.",
+                    messageTemplateService.getRecognitionFailureMessage("theme", language),
                     context.toBuilder().build(), // 상태 유지
                     ConversationState.AWAITING_THEME,
-                    "어떤 테마의 루트를 찾고 계신가요?"
+                    messageTemplateService.getMissingInfoMessage("theme", language)
             );
         }
 
@@ -156,11 +164,12 @@ public class ChatService {
 
         conversationManager.saveSessionContext(nextContext.getSessionId(), nextContext);
 
+        String language = context.getUserLanguage();
         return responseBuilder.createQuestionResponse(
-                "좋습니다! " + updatedContext.getTheme().name() + " 테마를 선택하셨네요. 어느 지역의 루트를 원하시나요? (예: 서울, 부산)",
+                messageTemplateService.getThemeConfirmationMessage(updatedContext.getTheme().name(), language),
                 nextContext,
                 ConversationState.AWAITING_REGION,
-                "어느 지역의 루트를 원하시나요?"
+                messageTemplateService.getMissingInfoMessage("region", language)
         );
     }
 
@@ -174,11 +183,12 @@ public class ChatService {
         ChatContext updatedContext = contextExtractor.extractRegionFromQuery(request.getQuery(), context);
 
         if (updatedContext.getRegion() == null || updatedContext.getRegion().trim().isEmpty()) {
+            String language = context.getUserLanguage();
             return responseBuilder.createQuestionResponse(
-                    "지역을 인식하지 못했습니다. 구체적인 지역명을 말씀해주세요. (예: 서울, 부산, 제주도)",
+                    messageTemplateService.getRecognitionFailureMessage("region", language),
                     context.toBuilder().build(), // 상태 유지
                     ConversationState.AWAITING_REGION,
-                    "어느 지역의 루트를 원하시나요?"
+                    messageTemplateService.getMissingInfoMessage("region", language)
             );
         }
 
@@ -190,11 +200,12 @@ public class ChatService {
 
         conversationManager.saveSessionContext(nextContext.getSessionId(), nextContext);
 
+        String language = context.getUserLanguage();
         return responseBuilder.createQuestionResponse(
-                updatedContext.getRegion() + " 지역을 선택하셨네요! 몇 일 여행을 계획하고 계신가요? (예: 1일, 2일, 3일)",
+                messageTemplateService.getRegionConfirmationMessage(updatedContext.getRegion(), language),
                 nextContext,
                 ConversationState.AWAITING_DAYS,
-                "몇 일 여행을 계획하고 계신가요?"
+                messageTemplateService.getMissingInfoMessage("days", language)
         );
     }
 
@@ -208,11 +219,12 @@ public class ChatService {
         ChatContext updatedContext = contextExtractor.extractDaysFromQuery(request.getQuery(), context);
 
         if (updatedContext.getDays() == null || updatedContext.getDays() <= 0) {
+            String language = context.getUserLanguage();
             return responseBuilder.createQuestionResponse(
-                    "일수를 인식하지 못했습니다. 숫자로 말씀해주세요. (예: 1일, 2일, 3일)",
+                    messageTemplateService.getRecognitionFailureMessage("days", language),
                     context.toBuilder().build(), // 상태 유지
                     ConversationState.AWAITING_DAYS,
-                    "몇 일 여행을 계획하고 계신가요?"
+                    messageTemplateService.getMissingInfoMessage("days", language)
             );
         }
 
@@ -237,7 +249,8 @@ public class ChatService {
         
         List<Long> placeIds = ragService.searchPlaceIds(searchQuery, placesNeeded);
         if (placeIds.isEmpty()) {
-            return responseBuilder.createErrorResponse("죄송합니다. 요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 테마나 지역을 시도해보시겠어요?", context);
+            String language = context.getUserLanguage();
+            return responseBuilder.createErrorResponse(messageTemplateService.getNoResultsMessage(language), context);
         }
 
         // 2. 실제 검색된 장소 수를 기반으로 일수 조정
@@ -272,10 +285,20 @@ public class ChatService {
     }
 
     private String createDocumentFromPlace(Place place) {
+        return createDocumentFromPlace(place, "ko"); // 기본 한국어로 벡터 스토어 구성
+    }
+    
+    private String createDocumentFromPlace(Place place, String language) {
         StringBuilder document = new StringBuilder();
-        document.append("장소명: ").append(place.getNameKo()).append("\n");
-        document.append("설명: ").append(place.getDescriptionKo()).append("\n");
-        document.append("주소: ").append(place.getAddressKo()).append("\n");
+        
+        // 언어별 필드 활용
+        String placeName = languageService.getPlaceName(place, language);
+        String placeDescription = languageService.getPlaceDescription(place, language);
+        String placeAddress = languageService.getPlaceAddress(place, language);
+        
+        document.append("장소명: ").append(placeName).append("\n");
+        document.append("설명: ").append(placeDescription).append("\n");
+        document.append("주소: ").append(placeAddress).append("\n");
         document.append("지역: ").append(place.getRegion().getNameKo()).append("\n");
         document.append("테마: ").append(String.join(", ", place.getThemes())).append("\n");
         document.append("비용정보: ").append(place.getCostInfo()).append("\n");
@@ -363,10 +386,12 @@ public class ChatService {
                     .filter(java.util.Objects::nonNull)
                     .collect(java.util.stream.Collectors.toList());
                     
+            String language = adjustmentResult.adjustedContext().getUserLanguage();
             String aiGeneratedMessage = ragService.generateRouteRecommendationAnswerWithPlaces(
                     adjustmentResult.adjustedContext().getDays() + "일 " + 
                     adjustmentResult.adjustedContext().getTheme().name() + " 테마 루트",
-                    routePlaces
+                    routePlaces,
+                    language
             );
             
             String finalMessage = adjustmentResult.adjustmentMessage() + aiGeneratedMessage;
@@ -390,7 +415,8 @@ public class ChatService {
                     
         } catch (Exception e) {
             log.error("루트 생성 중 오류 발생", e);
-            return responseBuilder.createErrorResponse("루트 생성 중 오류가 발생했습니다. 다시 시도해주시겠어요?", adjustmentResult.adjustedContext());
+            String language = adjustmentResult.adjustedContext().getUserLanguage();
+            return responseBuilder.createErrorResponse(messageTemplateService.getNoResultsMessage(language), adjustmentResult.adjustedContext());
         }
     }
     
@@ -405,18 +431,19 @@ public class ChatService {
         String missingInfo = contextExtractor.checkMissingRequiredInfo(extractedContext);
         if (missingInfo != null) {
             // 상태 기반 대화 시작 - 첫 번째 누락 항목에 따라 상태 설정
+            String language = extractedContext.getUserLanguage();
             ConversationState nextState;
             String question;
             
             if (extractedContext.getTheme() == null) {
                 nextState = ConversationState.AWAITING_THEME;
-                question = "어떤 테마의 루트를 찾고 계신가요? (K-POP, K-드라마, K-푸드, K-패션 중 선택해주세요)";
+                question = messageTemplateService.getMissingInfoMessage("theme", language);
             } else if (extractedContext.getRegion() == null || extractedContext.getRegion().trim().isEmpty()) {
                 nextState = ConversationState.AWAITING_REGION;
-                question = "어느 지역의 루트를 원하시나요? (예: 서울, 부산)";
+                question = messageTemplateService.getMissingInfoMessage("region", language);
             } else {
                 nextState = ConversationState.AWAITING_DAYS;
-                question = "몇 일 여행을 계획하고 계신가요? (예: 1일, 2일, 3일)";
+                question = messageTemplateService.getMissingInfoMessage("days", language);
             }
             
             return responseBuilder.createQuestionResponse(missingInfo, extractedContext, nextState, question);
@@ -438,12 +465,14 @@ public class ChatService {
         List<com.mey.backend.domain.route.entity.Route> routes = searchExistingRoutes(extractedContext, request.getQuery());
         
         if (routes.isEmpty()) {
-            return responseBuilder.createQuestionResponse("요청하신 조건에 맞는 기존 루트를 찾을 수 없습니다. 새로운 루트를 만들어드릴까요?", extractedContext);
+            String language = extractedContext.getUserLanguage();
+            return responseBuilder.createQuestionResponse(messageTemplateService.getNoResultsMessage(language), extractedContext);
         }
         
-        // 3. RAG를 통한 자연스러운 추천 메시지 생성
+        // 3. RAG를 통한 자연스러운 추천 메시지 생성 (언어 고려)
         List<DocumentSearchResult> relevantDocs = ragService.retrieve(request.getQuery(), 3);
-        String recommendationMessage = ragService.generateRouteRecommendationAnswer(request.getQuery(), relevantDocs);
+        String language = extractedContext.getUserLanguage();
+        String recommendationMessage = ragService.generateRouteRecommendationAnswer(request.getQuery(), relevantDocs, language);
         
         // 4. Route 엔티티를 ExistingRoute DTO로 변환
         return responseBuilder.createExistingRoutesResponse(recommendationMessage, routes, extractedContext);
@@ -459,11 +488,13 @@ public class ChatService {
         List<Long> placeIds = ragService.searchPlaceIds(request.getQuery(), 5);
         
         if (placeIds.isEmpty()) {
-            return responseBuilder.createQuestionResponse("요청하신 조건에 맞는 장소를 찾을 수 없습니다. 다른 키워드로 검색해보시겠어요?", extractedContext);
+            String language = extractedContext.getUserLanguage();
+            return responseBuilder.createQuestionResponse(messageTemplateService.getNoResultsMessage(language), extractedContext);
         }
         
         List<Place> places = placeRepository.findAllById(placeIds);
-        return responseBuilder.createPlaceInfoResponse("검색하신 조건에 맞는 장소들을 찾았습니다:", places, extractedContext);
+        String language = extractedContext.getUserLanguage();
+        return responseBuilder.createPlaceInfoResponse(messageTemplateService.getPlaceInfoHeader(language), places, extractedContext);
     }
     
     /**

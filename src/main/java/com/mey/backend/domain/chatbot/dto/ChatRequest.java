@@ -19,4 +19,8 @@ public class ChatRequest {
     
     @Schema(description = "이전 대화에서 추출된 컨텍스트 정보")
     private ChatContext context;
+    
+    @Schema(description = "사용자 언어", example = "ko", allowableValues = {"ko", "en", "ja", "zh"})
+    @Builder.Default
+    private String language = "ko";
 }
