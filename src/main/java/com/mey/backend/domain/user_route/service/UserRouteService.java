@@ -13,11 +13,13 @@ import com.mey.backend.domain.user_route.repository.UserRouteRepository;
 import com.mey.backend.global.exception.RouteException;
 import com.mey.backend.global.exception.UserRouteException;
 import com.mey.backend.global.payload.status.ErrorStatus;
+
 import java.sql.Date;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -89,6 +91,18 @@ public class UserRouteService {
         userRoute.setPlannedStartTime(
                 LocalDateTime.of(request.getPreferredStartDate(), request.getPreferredStartTime()));
         userRouteRepository.save(userRoute);
+    }
+
+    @Transactional
+    public void updateUserRouteStatus(User user, Long savedRouteId, UserRouteStatus status) {
+        UserRoute userRoute = userRouteRepository.findByUserRouteIdAndUser(savedRouteId, user)
+                .orElseThrow(() -> new UserRouteException(ErrorStatus.USER_ROUTE_NOT_FOUND));
+
+        if (status == null || status == UserRouteStatus.ALL) {
+            throw new UserRouteException(ErrorStatus.BAD_REQUEST);
+        }
+
+        userRoute.setUserRouteStatus(status);
     }
 
     @Transactional
