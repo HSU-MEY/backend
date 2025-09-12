@@ -35,6 +35,20 @@ public class UserRouteController {
     }
 
     @Operation(
+            summary = "유저 루트 상태 변경",
+            description = "사용자가 선택한 루트의 상태 변경",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @PutMapping("/{savedRouteId}/{status}")
+    public CommonResponse<Void> updateUserRouteStatus(
+            @Parameter(hidden = true) @CurrentUser User user,
+            @PathVariable Long savedRouteId,
+            @PathVariable UserRouteStatus status) {
+        userRouteService.updateUserRouteStatus(user, savedRouteId, status);
+        return CommonResponse.onSuccess(null);
+    }
+
+    @Operation(
             summary = "유저 루트 목록 조회",
             description = "사용자가 저장한 루트 목록 조회",
             security = @SecurityRequirement(name = "bearerAuth")
