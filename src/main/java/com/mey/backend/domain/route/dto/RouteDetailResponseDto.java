@@ -20,6 +20,7 @@ public class RouteDetailResponseDto {
     private String title;
     private String description;
     private String theme;
+    private String imageUrl;
     private BigDecimal totalDistanceKm;
     private Integer totalDurationMinutes;
     private Integer estimatedCost;
