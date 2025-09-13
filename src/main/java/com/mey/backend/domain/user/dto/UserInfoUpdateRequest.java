@@ -3,9 +3,11 @@ package com.mey.backend.domain.user.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Getter
 @NoArgsConstructor
+@ToString(exclude = {"password", "email"})
 @Schema(description = "사용자 정보 수정 요청")
 public class UserInfoUpdateRequest {
     

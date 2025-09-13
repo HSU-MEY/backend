@@ -98,7 +98,7 @@ public class PlaceTourApiClient {
             JsonNode items = om.readTree(body).at("/response/body/items/item");
 
             if (items.isArray()) {
-                log.info("📍 locationBasedList2 {}건 lat={}, lon={}", items.size(), latitude, longitude);
+                log.info("📍 locationBasedList2 {}건 조회됨", items.size());
 
                 for (JsonNode it : items) {
                     String address = it.path("addr1").asText("");
@@ -115,12 +115,12 @@ public class PlaceTourApiClient {
                     ));
                 }
             } else {
-                log.warn("⚠️ locationBasedList2 결과 없음 lat={}, lon={}", latitude, longitude);
+                log.warn("⚠️ locationBasedList2 결과 없음");
             }
 
             return out;
         } catch (Exception e) {
-            log.error("❌ locationBasedList2 호출 실패 lat={}, lon={}", latitude, longitude, e);
+            log.error("❌ locationBasedList2 호출 실패", e);
         }
         return List.of();
     }

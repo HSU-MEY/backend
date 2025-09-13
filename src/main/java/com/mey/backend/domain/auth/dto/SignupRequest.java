@@ -5,9 +5,11 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Getter
 @NoArgsConstructor
+@ToString(exclude = {"password", "email"})
 public class SignupRequest {
 
     @NotBlank(message = "닉네임은 필수입니다")

@@ -19,5 +19,11 @@ spring:
 
 logging:
   level:
-    com.mey.backend: INFO
-    org.springframework.web: WARN
+    com.mey.backend: WARN
+    org.springframework.web: ERROR
+    org.springframework.security: ERROR
+    org.hibernate.sql: ERROR
+    org.springframework.web.servlet.DispatcherServlet: ERROR
+    org.springframework.security.web.FilterChainProxy: ERROR
+    org.springframework.boot.autoconfigure: ERROR
+    root: WARN

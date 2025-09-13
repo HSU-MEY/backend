@@ -4,9 +4,11 @@ import com.mey.backend.domain.user.entity.Role;
 import com.mey.backend.domain.user.entity.User;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.ToString;
 
 @Getter
 @AllArgsConstructor
+@ToString(exclude = {"email"})
 public class UserInfoResponse {
     private Long id;
     private String nickname;
