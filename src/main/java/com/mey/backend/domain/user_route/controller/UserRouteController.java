@@ -49,6 +49,20 @@ public class UserRouteController {
     }
 
     @Operation(
+            summary = "루트 ID로 유저 루트 ID 및 상태 조회",
+            description = "루트 ID로 사용자가 저장한 루트 ID 및 상태 조회",
+            security = @SecurityRequirement(name = "bearerAuth")
+    )
+    @GetMapping("/{routeId}")
+    public CommonResponse<UserRouteStatusResponseDto> getUserRoutesByRouteId(
+            @Parameter(hidden = true) @CurrentUser User user,
+            @PathVariable Long routeId
+    ) {
+        UserRouteStatusResponseDto response = userRouteService.getUserRoutesByRouteId(user, routeId);
+        return CommonResponse.onSuccess(response);
+    }
+
+    @Operation(
             summary = "유저 루트 목록 조회",
             description = "사용자가 저장한 루트 목록 조회",
             security = @SecurityRequirement(name = "bearerAuth")
