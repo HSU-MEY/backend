@@ -3,10 +3,7 @@ package com.mey.backend.domain.user_route.service;
 import com.mey.backend.domain.route.entity.Route;
 import com.mey.backend.domain.route.repository.RouteRepository;
 import com.mey.backend.domain.user.entity.User;
-import com.mey.backend.domain.user_route.dto.UserRouteListResponseDto;
-import com.mey.backend.domain.user_route.dto.UserRouteSaveRequestDto;
-import com.mey.backend.domain.user_route.dto.UserRouteSaveResponseDto;
-import com.mey.backend.domain.user_route.dto.UserRouteUpdateRequestDto;
+import com.mey.backend.domain.user_route.dto.*;
 import com.mey.backend.domain.user_route.entity.UserRoute;
 import com.mey.backend.domain.user_route.entity.UserRouteStatus;
 import com.mey.backend.domain.user_route.repository.UserRouteRepository;
@@ -57,6 +54,14 @@ public class UserRouteService {
         return UserRouteSaveResponseDto.builder()
                 .savedRouteId(savedUserRoute.getUserRouteId())
                 .build();
+    }
+
+    public UserRouteStatusResponseDto getUserRoutesByRouteId(User user, Long routeId) {
+
+        UserRoute userRoute = userRouteRepository.findByUserAndRoute_Id(user, routeId)
+                .orElseThrow(() -> new UserRouteException(ErrorStatus.USER_ROUTE_NOT_FOUND));
+
+        return UserRouteStatusResponseDto.from(userRoute);
     }
 
     public UserRouteListResponseDto getUserRoutes(User user, UserRouteStatus status) {
