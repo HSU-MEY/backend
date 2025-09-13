@@ -27,6 +27,7 @@ public class UserRouteListResponseDto {
         private Long routeId;
         private String title;
         private String description;
+        private String imageUrl;
         private Integer totalDurationMinutes;
         private LocalDate preferredStartDate;
         private LocalTime preferredStartTime;
