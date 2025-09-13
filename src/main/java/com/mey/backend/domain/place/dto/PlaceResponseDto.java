@@ -41,7 +41,10 @@ public class PlaceResponseDto {
     private Map<String, String> openingHours;
     private List<String> themes;
 
-    private String costInfo;
+    private String costInfoKo;
+    private String costInfoEn;
+    private String costInfoJp;
+    private String costInfoCh;
 
     public PlaceResponseDto(Place place) {
         this.id = place.getPlaceId();
@@ -67,6 +70,9 @@ public class PlaceResponseDto {
         this.tourApiPlaceId = place.getTourApiPlaceId();
         this.openingHours = place.getOpeningHours();
         this.themes = place.getThemes();
-        this.costInfo = place.getCostInfo();
+        this.costInfoKo = place.getCostInfoKo();
+        this.costInfoEn = place.getCostInfoEn();
+        this.costInfoJp = place.getCostInfoJp();
+        this.costInfoCh = place.getCostInfoCh();
     }
 }

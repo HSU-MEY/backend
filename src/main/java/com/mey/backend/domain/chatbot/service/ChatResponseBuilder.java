@@ -97,7 +97,7 @@ public class ChatResponseBuilder {
                         .description(languageService.getPlaceDescription(place, language))
                         .address(languageService.getPlaceAddress(place, language))
                         .themes(place.getThemes())
-                        .costInfo(place.getCostInfo())
+                        .costInfo(languageService.getPlaceCostInfo(place, language))
                         .build())
                 .toList();
         

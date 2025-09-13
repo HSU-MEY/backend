@@ -88,6 +88,21 @@ public class LanguageService {
     }
     
     /**
+     * Place 데이터에서 해당 언어의 비용 정보를 가져옵니다.
+     */
+    public String getPlaceCostInfo(com.mey.backend.domain.place.entity.Place place, String language) {
+        return switch (language) {
+            case "ko" -> place.getCostInfoKo();
+            case "en" -> place.getCostInfoEn() != null ? place.getCostInfoEn() : place.getCostInfoKo();
+            case "ja" -> place.getCostInfoJp() != null ? place.getCostInfoJp() :
+                        (place.getCostInfoEn() != null ? place.getCostInfoEn() : place.getCostInfoKo());
+            case "zh" -> place.getCostInfoCh() != null ? place.getCostInfoCh() :
+                        (place.getCostInfoEn() != null ? place.getCostInfoEn() : place.getCostInfoKo());
+            default -> place.getCostInfoKo();
+        };
+    }
+
+    /**
      * Route 데이터에서 해당 언어의 제목을 가져옵니다.
      */
     public String getRouteTitle(com.mey.backend.domain.route.entity.Route route, String language) {
