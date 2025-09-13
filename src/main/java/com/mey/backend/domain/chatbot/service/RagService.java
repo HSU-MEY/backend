@@ -292,6 +292,7 @@ public class RagService {
         String placeName = languageService.getPlaceName(place, language);
         String placeDescription = languageService.getPlaceDescription(place, language);
         String placeAddress = languageService.getPlaceAddress(place, language);
+        String placeCostInfo = languageService.getPlaceCostInfo(place, language);
         
         return switch (language) {
             case "ko" -> String.format("""
@@ -308,7 +309,7 @@ public class RagService {
                     placeAddress,
                     place.getRegion().getNameKo(),
                     String.join(", ", place.getThemes()),
-                    place.getCostInfo(),
+                    placeCostInfo,
                     place.getContactInfo() != null ? place.getContactInfo() : "정보 없음"
             );
             case "en" -> String.format("""
@@ -325,7 +326,7 @@ public class RagService {
                     placeAddress,
                     place.getRegion().getNameKo(),
                     String.join(", ", place.getThemes()),
-                    place.getCostInfo(),
+                    placeCostInfo,
                     place.getContactInfo() != null ? place.getContactInfo() : "No information"
             );
             case "ja" -> String.format("""
@@ -342,7 +343,7 @@ public class RagService {
                     placeAddress,
                     place.getRegion().getNameKo(),
                     String.join(", ", place.getThemes()),
-                    place.getCostInfo(),
+                    placeCostInfo,
                     place.getContactInfo() != null ? place.getContactInfo() : "情報なし"
             );
             case "zh" -> String.format("""
@@ -359,7 +360,7 @@ public class RagService {
                     placeAddress,
                     place.getRegion().getNameKo(),
                     String.join(", ", place.getThemes()),
-                    place.getCostInfo(),
+                    placeCostInfo,
                     place.getContactInfo() != null ? place.getContactInfo() : "无信息"
             );
             default -> createPlaceContext(place, "ko"); // 기본값

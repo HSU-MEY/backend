@@ -88,5 +88,11 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "json")
     private List<String> themes;
 
-    private String costInfo;
+    private String costInfoKo;
+
+    private String costInfoEn;
+
+    private String costInfoJp;
+
+    private String costInfoCh;
 }

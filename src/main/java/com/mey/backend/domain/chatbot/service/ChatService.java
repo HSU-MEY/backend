@@ -290,18 +290,19 @@ public class ChatService {
     
     private String createDocumentFromPlace(Place place, String language) {
         StringBuilder document = new StringBuilder();
-        
+
         // 언어별 필드 활용
         String placeName = languageService.getPlaceName(place, language);
         String placeDescription = languageService.getPlaceDescription(place, language);
         String placeAddress = languageService.getPlaceAddress(place, language);
-        
+        String placeCostInfo = languageService.getPlaceCostInfo(place, language);
+
         document.append("장소명: ").append(placeName).append("\n");
         document.append("설명: ").append(placeDescription).append("\n");
         document.append("주소: ").append(placeAddress).append("\n");
         document.append("지역: ").append(place.getRegion().getNameKo()).append("\n");
         document.append("테마: ").append(String.join(", ", place.getThemes())).append("\n");
-        document.append("비용정보: ").append(place.getCostInfo()).append("\n");
+        document.append("비용정보: ").append(placeCostInfo).append("\n");
         
         if (place.getContactInfo() != null) {
             document.append("연락처: ").append(place.getContactInfo()).append("\n");
