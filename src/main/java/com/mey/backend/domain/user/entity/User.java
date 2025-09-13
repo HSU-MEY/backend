@@ -14,6 +14,7 @@ import java.util.Collections;
 @Getter
 @Setter
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
+@ToString(exclude = {"password", "email"})
 public class User implements UserDetails {
 
     @Id

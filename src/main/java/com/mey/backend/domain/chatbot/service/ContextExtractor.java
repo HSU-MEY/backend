@@ -228,7 +228,7 @@ public class ContextExtractor {
      * AI 파싱 실패 시 fallback 로직
      */
     private ChatContext extractContextFallback(String query, ChatContext existingContext) {
-        log.info("Using fallback context extraction for query: {}", query);
+        log.info("fallback context extraction 사용");
         
         ChatContext.ChatContextBuilder builder = existingContext != null ? 
                 existingContext.toBuilder() : ChatContext.builder();

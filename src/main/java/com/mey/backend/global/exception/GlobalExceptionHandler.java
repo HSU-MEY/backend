@@ -86,7 +86,7 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     public ResponseEntity<Object> handleOthers(Exception e, WebRequest request) {
         CommonResponse<Object> body = CommonResponse.onFailure(ErrorStatus.INTERNAL_SERVER_ERROR.getCode(),
                 ErrorStatus.INTERNAL_SERVER_ERROR.getMessage(),
-                e.getMessage());
+                null);
 
         return super.handleExceptionInternal(e, body, HttpHeaders.EMPTY,
                 ErrorStatus.INTERNAL_SERVER_ERROR.getHttpStatus(), request);
