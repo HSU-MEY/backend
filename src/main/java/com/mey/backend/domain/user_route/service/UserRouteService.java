@@ -125,6 +125,7 @@ public class UserRouteService {
                 .routeId(userRoute.getRoute().getId())
                 .title(userRoute.getRoute().getTitleKo())
                 .description(userRoute.getRoute().getDescriptionKo())
+                .imageUrl(userRoute.getRoute().getImageUrl())
                 .totalDurationMinutes(userRoute.getRoute().getTotalDurationMinutes())
                 .preferredStartDate(plannedDate)
                 .preferredStartTime(
