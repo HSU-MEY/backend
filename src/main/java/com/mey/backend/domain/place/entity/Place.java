@@ -56,7 +56,7 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false)
     private Double latitude;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 
     @Column(nullable = false)
