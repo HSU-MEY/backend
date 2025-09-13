@@ -6,12 +6,14 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import lombok.ToString;
 
 @Schema(description = "채팅 요청 DTO")
 @Getter
 @Builder(toBuilder = true)
 @NoArgsConstructor
 @AllArgsConstructor
+@ToString(exclude = {"query"})
 public class ChatRequest {
     @Schema(description = "사용자 질문", example = "k-pop 루트 추천해줘")
     @NotBlank

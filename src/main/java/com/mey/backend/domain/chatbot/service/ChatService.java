@@ -88,7 +88,7 @@ public class ChatService {
      * 상태 기반 대화 처리를 지원하며, 세션 연속성을 보장합니다.
      */
     public ChatResponse processUserQuery(ChatRequest request) {
-        log.info("Processing user query: {} (language: {})", request.getQuery(), request.getLanguage());
+        log.info("사용자 쿼리 처리 시작 (언어: {})", request.getLanguage());
 
         // 1. 언어 검증 및 설정
         String validatedLanguage = languageService.validateAndGetLanguage(request.getLanguage());

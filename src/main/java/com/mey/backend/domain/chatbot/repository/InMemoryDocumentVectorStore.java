@@ -117,7 +117,7 @@ public class InMemoryDocumentVectorStore {
      * @return 유사도 순으로 정렬된 검색 결과 목록
      */
     public List<DocumentSearchResult> similaritySearch(String query, int maxResults) {
-        log.debug("유사도 검색 시작 - 질의: '{}', 최대 결과: {}", query, maxResults);
+        log.debug("유사도 검색 시작 - 최대 결과: {}", maxResults);
 
         try {
             // 검색 요청 구성
@@ -139,7 +139,7 @@ public class InMemoryDocumentVectorStore {
                     .map(this::mapToSearchResult)
                     .collect(Collectors.toList());
         } catch (Exception e) {
-            log.error("유사도 검색 실패 - 질의: '{}'", query, e);
+            log.error("유사도 검색 실패", e);
             throw new SimilarityProcessingException();
         }
     }

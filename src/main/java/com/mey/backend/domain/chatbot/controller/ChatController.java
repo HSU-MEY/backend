@@ -32,7 +32,7 @@ public class ChatController {
     )
     @PostMapping("/query")
     public CommonResponse<ChatResponse> sendMessage(@RequestBody ChatRequest request) {
-        log.info("chat request: {}", request.getQuery());
+        log.info("챗봇 요청 처리 시작");
 
         try {
             ChatResponse response = chatService.processUserQuery(request);
