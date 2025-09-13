@@ -560,9 +560,17 @@ let response3 = await chatManager.sendMessage("2 days");
 ## 🌍 언어별 Fallback 전략
 
 - **지원 언어**: ko (한국어), en (영어), ja (일본어), zh (중국어)
+- **완전 지원**: 모든 4개 언어가 데이터베이스에서 완전 지원됨
 - **Fallback 규칙**: 
-  - ja/zh → en (일본어/중국어는 영어로 fallback)
+  - 각 언어별 데이터가 누락된 경우에만 다음 순서로 fallback:
+    - ja (일본어) → en (영어) → ko (한국어)
+    - zh (중국어) → en (영어) → ko (한국어)
+    - en (영어) → ko (한국어)
   - 기타 모든 언어 → ko (한국어 기본값)
+- **데이터 품질**: 
+  - 모든 Place 엔티티에 4개 언어 완전 지원 (nameKo/En/Jp/Ch, descriptionKo/En/Jp/Ch, addressKo/En/Jp/Ch)
+  - RAG 시스템에서 언어별 맞춤 검색 및 응답 생성
+  - 챗봇 메시지 템플릿 4개 언어 완전 지원
 - **언어 코드 변환**: 
   - chatbot 도메인: "ja", "zh" 사용
   - Tour API 호출 시: "J", "C"로 자동 변환

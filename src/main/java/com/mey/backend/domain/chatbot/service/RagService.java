@@ -29,6 +29,7 @@ import org.springframework.stereotype.Service;
 public class RagService {
     private final InMemoryDocumentVectorStore vectorStore;
     private final OpenAiApi openAiApi;
+    private final LanguageService languageService;
 
     /**
      * 질의와 관련된 문서를 검색합니다.
@@ -287,6 +288,11 @@ public class RagService {
             language = "ko";
         }
         
+        // LanguageService를 사용하여 다국어 데이터 가져오기
+        String placeName = languageService.getPlaceName(place, language);
+        String placeDescription = languageService.getPlaceDescription(place, language);
+        String placeAddress = languageService.getPlaceAddress(place, language);
+        
         return switch (language) {
             case "ko" -> String.format("""
                     장소명: %s
@@ -297,9 +303,9 @@ public class RagService {
                     비용정보: %s
                     연락처: %s
                     """,
-                    place.getNameKo(),
-                    place.getDescriptionKo(),
-                    place.getAddressKo(),
+                    placeName,
+                    placeDescription,
+                    placeAddress,
                     place.getRegion().getNameKo(),
                     String.join(", ", place.getThemes()),
                     place.getCostInfo(),
@@ -314,9 +320,9 @@ public class RagService {
                     Cost Info: %s
                     Contact: %s
                     """,
-                    place.getNameEn() != null ? place.getNameEn() : place.getNameKo(),
-                    place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo(),
-                    place.getAddressKo(), // Address is only available in Korean
+                    placeName,
+                    placeDescription,
+                    placeAddress,
                     place.getRegion().getNameKo(),
                     String.join(", ", place.getThemes()),
                     place.getCostInfo(),
@@ -331,9 +337,9 @@ public class RagService {
                     費用情報: %s
                     連絡先: %s
                     """,
-                    place.getNameEn() != null ? place.getNameEn() : place.getNameKo(), // Fallback to English
-                    place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo(),
-                    place.getAddressKo(),
+                    placeName,
+                    placeDescription,
+                    placeAddress,
                     place.getRegion().getNameKo(),
                     String.join(", ", place.getThemes()),
                     place.getCostInfo(),
@@ -348,9 +354,9 @@ public class RagService {
                     费用信息: %s
                     联系方式: %s
                     """,
-                    place.getNameEn() != null ? place.getNameEn() : place.getNameKo(), // Fallback to English
-                    place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo(),
-                    place.getAddressKo(),
+                    placeName,
+                    placeDescription,
+                    placeAddress,
                     place.getRegion().getNameKo(),
                     String.join(", ", place.getThemes()),
                     place.getCostInfo(),
