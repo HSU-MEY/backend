@@ -32,11 +32,11 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false)
     private String nameEn;
 
-//    @Column(nullable = false)
-//    private String nameJp;
-//
-//    @Column(nullable = false)
-//    private String nameCh;
+    @Column(nullable = false)
+    private String nameJp;
+
+    @Column(nullable = false)
+    private String nameCh;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descriptionKo;
@@ -44,12 +44,11 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String descriptionEn;
 
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String descriptionJp;
 
-//    @Column(nullable = false, columnDefinition = "TEXT")
-//    private String descriptionJp;
-//
-//    @Column(nullable = false, columnDefinition = "TEXT")
-//    private String descriptionCh;
+    @Column(nullable = false, columnDefinition = "TEXT")
+    private String descriptionCh;
 
     @Column(nullable = false)
     private Double longitude;
@@ -57,20 +56,20 @@ public class Place extends BaseTimeEntity {
     @Column(nullable = false)
     private Double latitude;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String imageUrl;
 
     @Column(nullable = false)
     private String addressKo;
 
-//    @Column(nullable = false)
-//    private String addressEn;
-//
-//    @Column(nullable = false)
-//    private String addressJp;
-//
-//    @Column(nullable = false)
-//    private String addressCh;
+    @Column(nullable = false)
+    private String addressEn;
+
+    @Column(nullable = false)
+    private String addressJp;
+
+    @Column(nullable = false)
+    private String addressCh;
 
     private String contactInfo;
 

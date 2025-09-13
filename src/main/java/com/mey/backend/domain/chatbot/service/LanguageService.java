@@ -49,11 +49,10 @@ public class LanguageService {
         return switch (language) {
             case "ko" -> place.getNameKo();
             case "en" -> place.getNameEn() != null ? place.getNameEn() : place.getNameKo();
-            case "ja", "zh" -> {
-                // 일본어/중국어는 아직 지원되지 않으므로 영어로 fallback
-                String englishName = place.getNameEn();
-                yield englishName != null ? englishName : place.getNameKo();
-            }
+            case "ja" -> place.getNameJp() != null ? place.getNameJp() : 
+                        (place.getNameEn() != null ? place.getNameEn() : place.getNameKo());
+            case "zh" -> place.getNameCh() != null ? place.getNameCh() : 
+                        (place.getNameEn() != null ? place.getNameEn() : place.getNameKo());
             default -> place.getNameKo();
         };
     }
@@ -65,21 +64,27 @@ public class LanguageService {
         return switch (language) {
             case "ko" -> place.getDescriptionKo();
             case "en" -> place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo();
-            case "ja", "zh" -> {
-                // 일본어/중국어는 아직 지원되지 않으므로 영어로 fallback
-                String englishDesc = place.getDescriptionEn();
-                yield englishDesc != null ? englishDesc : place.getDescriptionKo();
-            }
+            case "ja" -> place.getDescriptionJp() != null ? place.getDescriptionJp() : 
+                        (place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo());
+            case "zh" -> place.getDescriptionCh() != null ? place.getDescriptionCh() : 
+                        (place.getDescriptionEn() != null ? place.getDescriptionEn() : place.getDescriptionKo());
             default -> place.getDescriptionKo();
         };
     }
     
     /**
      * Place 데이터에서 해당 언어의 주소를 가져옵니다.
-     * 현재는 한국어 주소만 지원하므로 모든 언어에 대해 한국어 주소를 반환
      */
     public String getPlaceAddress(com.mey.backend.domain.place.entity.Place place, String language) {
-        return place.getAddressKo(); // 현재는 한국어 주소만 지원
+        return switch (language) {
+            case "ko" -> place.getAddressKo();
+            case "en" -> place.getAddressEn() != null ? place.getAddressEn() : place.getAddressKo();
+            case "ja" -> place.getAddressJp() != null ? place.getAddressJp() : 
+                        (place.getAddressEn() != null ? place.getAddressEn() : place.getAddressKo());
+            case "zh" -> place.getAddressCh() != null ? place.getAddressCh() : 
+                        (place.getAddressEn() != null ? place.getAddressEn() : place.getAddressKo());
+            default -> place.getAddressKo();
+        };
     }
     
     /**
@@ -123,9 +128,9 @@ public class LanguageService {
     
     /**
      * 데이터베이스에서 완전히 지원되는 언어인지 확인합니다.
-     * (현재는 한국어와 영어만 완전 지원)
+     * (현재는 한국어, 영어, 일본어, 중국어 모두 완전 지원)
      */
     public boolean isLanguageFullySupported(String language) {
-        return "ko".equals(language) || "en".equals(language);
+        return SUPPORTED_LANGUAGES.contains(language);
     }
 }
