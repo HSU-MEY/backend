@@ -219,15 +219,12 @@ public class RouteService {
     private record Totals(int totalDurationSec, int totalDistanceMeters, int totalFare) {
     }
 
-    public RouteRecommendListResponseDto getRecommendedRoutes(List<Theme> themes, int limit, int offset) {
+    public RouteRecommendListResponseDto getRecommendedRoutes(Theme theme, int limit, int offset) {
         List<Route> allRoutes;
 
-        if (themes != null && !themes.isEmpty()) {
-            // themes를 JSON 배열 문자열로 변환
-            String themesJson = themes.stream()
-                    .map(t -> "\"" + t.name() + "\"") // "FOOD", "CAFE" 이런 식으로
-                    .collect(Collectors.joining(",", "[", "]"));
-
+        if (theme != null) {
+            // theme을 JSON 배열 문자열로 변환 (단일)
+            String themesJson = "[\"" + theme.name() + "\"]";
             allRoutes = routeRepository.findPopularByThemes(themesJson);
         } else {
             allRoutes = routeRepository.findByRouteType(RouteType.POPULAR);
