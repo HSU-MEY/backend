@@ -16,6 +16,7 @@ public class PlaceSimpleResponseDto {
     private Double longitude;
     private Double latitude;
     private Long regionId;
+    private String imageUrl;
     private Map<String, String> openingHours;
     private String addressKo;
     private String addressEn;
@@ -31,6 +32,7 @@ public class PlaceSimpleResponseDto {
         this.longitude = place.getLongitude();
         this.latitude = place.getLatitude();
         this.regionId = place.getRegion().getRegionId();
+        this.imageUrl = place.getImageUrl();
         this.openingHours = place.getOpeningHours();
         this.addressKo = place.getAddressKo();
         this.addressEn = place.getAddressEn();
